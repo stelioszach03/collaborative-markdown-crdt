@@ -8,9 +8,6 @@ COPY server/package.json ./
 # Install dependencies
 RUN npm install
 
-# Install additional dependencies
-RUN npm install y-websocket y-protocols
-
 # Copy source code
 COPY server/ ./
 

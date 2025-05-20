@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
-import { setupWSConnection } from 'y-websocket/bin/utils.js';
+import pkg from 'y-websocket';
+const { WebsocketProvider } = pkg;
 import * as awarenessProtocol from 'y-protocols/awareness.js';
 import { writeUpdate, storeUpdate } from '../utils/documentStore.js';
 import path from 'path';
@@ -79,7 +80,7 @@ async function loadDocumentUpdates(docId, doc) {
   }
 }
 
-// Set up WebSocket connection with a client
+// Handle WebSocket connection with a client
 export const handleConnection = (conn, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const docId = url.pathname.slice(1); // Remove leading slash
@@ -91,19 +92,72 @@ export const handleConnection = (conn, req) => {
   
   const { doc, awareness } = getYDoc(docId);
   
-  // Use the setupWSConnection function from y-websocket
-  setupWSConnection(conn, req, { 
-    docId,
-    gc: true,
-    awareness
+  // Custom WebSocket handling implementation
+  conn.on('message', (message) => {
+    try {
+      const parsedMessage = JSON.parse(message);
+      
+      if (parsedMessage.type === 'sync') {
+        // Handle sync messages
+        const encoder = new Y.DSEncoder();
+        const stateVector = parsedMessage.stateVector ? Y.decodeStateVector(parsedMessage.stateVector) : Y.encodeStateVector(doc);
+        const update = Y.encodeStateAsUpdate(doc, stateVector);
+        
+        conn.send(JSON.stringify({
+          type: 'sync',
+          update: update.toString('base64')
+        }));
+      } else if (parsedMessage.type === 'update') {
+        // Apply update to document
+        const update = Buffer.from(parsedMessage.update, 'base64');
+        Y.applyUpdate(doc, update);
+        
+        // Broadcast update to all clients except sender
+        broadcastUpdate(docId, update, conn);
+      } else if (parsedMessage.type === 'awareness') {
+        // Update awareness state
+        if (parsedMessage.states) {
+          awarenessProtocol.applyAwarenessUpdate(
+            awareness, 
+            parsedMessage.states
+          );
+        }
+      }
+    } catch (err) {
+      console.error(`Error handling message: ${err.message}`);
+    }
   });
   
-  console.log(`Client connected to document: ${docId}`);
+  // Initial sync
+  const encoder = new Y.DSEncoder();
+  const update = Y.encodeStateAsUpdate(doc);
+  
+  conn.send(JSON.stringify({
+    type: 'sync',
+    update: update.toString('base64')
+  }));
+  
+  // Send current awareness states
+  const awarenessStates = awareness.getStates();
+  if (awarenessStates.size > 0) {
+    conn.send(JSON.stringify({
+      type: 'awareness',
+      states: awarenessProtocol.encodeAwarenessUpdate(awareness, Array.from(awarenessStates.keys()))
+    }));
+  }
   
   conn.on('close', () => {
     console.log(`Client disconnected from document: ${docId}`);
   });
+  
+  console.log(`Client connected to document: ${docId}`);
 };
+
+// Broadcast update to all clients for a document
+function broadcastUpdate(docId, update, excludeConn) {
+  // Implementation details would depend on how connections are stored
+  // This is a placeholder
+}
 
 // Get active users for a document
 export const getActiveUsers = (docId) => {

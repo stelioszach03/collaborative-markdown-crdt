@@ -1,15 +1,15 @@
 import {
-  createDocument,
-  getAllDocuments,
-  getDocumentById,
-  updateDocument,
-  deleteDocument
+  createDocument as createDocumentInStore,
+  getAllDocuments as getAllDocumentsFromStore,
+  getDocumentById as getDocumentByIdFromStore,
+  updateDocument as updateDocumentInStore,
+  deleteDocument as deleteDocumentFromStore
 } from '../utils/documentStore.js';
 
 // Get all documents
 export const getAllDocuments = async (req, res) => {
   try {
-    const documents = await getAllDocuments();
+    const documents = await getAllDocumentsFromStore();
     res.json(documents);
   } catch (err) {
     console.error(`Error fetching documents: ${err.message}`);
@@ -21,7 +21,7 @@ export const getAllDocuments = async (req, res) => {
 export const createDocument = async (req, res) => {
   try {
     const { name } = req.body;
-    const newDoc = await createDocument(name);
+    const newDoc = await createDocumentInStore(name);
     res.status(201).json(newDoc);
   } catch (err) {
     console.error(`Error creating document: ${err.message}`);
@@ -33,7 +33,7 @@ export const createDocument = async (req, res) => {
 export const getDocumentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const document = await getDocumentById(id);
+    const document = await getDocumentByIdFromStore(id);
     res.json(document);
   } catch (err) {
     console.error(`Error fetching document: ${err.message}`);
@@ -51,7 +51,7 @@ export const updateDocument = async (req, res) => {
       return res.status(400).json({ message: 'Name is required' });
     }
     
-    const updatedDoc = await updateDocument(id, { name });
+    const updatedDoc = await updateDocumentInStore(id, { name });
     res.json(updatedDoc);
   } catch (err) {
     console.error(`Error updating document: ${err.message}`);
@@ -68,7 +68,7 @@ export const updateDocument = async (req, res) => {
 export const deleteDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    await deleteDocument(id);
+    await deleteDocumentFromStore(id);
     res.status(204).send();
   } catch (err) {
     console.error(`Error deleting document: ${err.message}`);
