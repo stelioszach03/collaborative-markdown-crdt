@@ -1,13 +1,128 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/src/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <meta name="description" content="Collaborative Markdown Editor - Επεξεργαστής Markdown με δυνατότητα συνεργασίας σε πραγματικό χρόνο" />
+    <meta name="theme-color" content="#0073ff" />
+    <meta name="color-scheme" content="light dark" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/src/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    
+    <!-- Preconnect για γρήγορη φόρτωση των fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
     <title>Collaborative Markdown Editor</title>
+    
+    <!-- Critical CSS για αποφυγή flickering πριν φορτώσει το υπόλοιπο CSS -->
+    <style>
+      :root {
+        --primary-color: #0073ff;
+        --primary-dark: #005ccc;
+        --bg-light: #ffffff;
+        --bg-dark: #1a202c;
+        --text-light: #2d3748;
+        --text-dark: #e2e8f0;
+      }
+      
+      html {
+        box-sizing: border-box;
+        height: 100%;
+      }
+      
+      *, *:before, *:after {
+        box-sizing: inherit;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: var(--bg-light);
+        color: var(--text-light);
+      }
+      
+      body.dark {
+        background-color: var(--bg-dark);
+        color: var(--text-dark);
+      }
+      
+      #root {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        width: 100%;
+      }
+      
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(0, 115, 255, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--primary-color);
+        animation: spin 1s ease-in-out infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .loading-text {
+        margin-top: 20px;
+        font-size: 18px;
+        color: var(--primary-color);
+      }
+      
+      .dark .loading-spinner {
+        border-color: rgba(99, 179, 237, 0.2);
+        border-top-color: #63b3ed;
+      }
+      
+      .dark .loading-text {
+        color: #63b3ed;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Fallback screen μέχρι να φορτώσει το React -->
+    <div id="root">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Φόρτωση εφαρμογής...</div>
+      </div>
+    </div>
+    
+    <!-- Script για ανίχνευση dark mode από το λειτουργικό σύστημα -->
+    <script>
+      // Check for system dark mode preference or saved preference
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const savedMode = localStorage.getItem('chakra-ui-color-mode');
+      
+      // Apply dark mode if either system prefers it or user has selected it
+      if (savedMode === 'dark' || (prefersDark && !savedMode)) {
+        document.body.classList.add('dark');
+      } else {
+        document.body.classList.remove('dark');
+      }
+    </script>
+    
+    <!-- Main application script -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

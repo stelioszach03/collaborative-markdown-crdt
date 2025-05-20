@@ -2,18 +2,20 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy only package.json first
+# Αντιγραφή package.json
 COPY server/package.json ./
 
-# Install dependencies
+# Εγκατάσταση εξαρτήσεων
 RUN npm install
 
-# Copy source code
+# Αντιγραφή του πηγαίου κώδικα
 COPY server/ ./
 
-# Create documents directory
+# Δημιουργία καταλόγου για έγγραφα
 RUN mkdir -p documents/updates
 
+# Έκθεση της θύρας 5000
 EXPOSE 5000
 
+# Εκκίνηση του server
 CMD ["npm", "start"]

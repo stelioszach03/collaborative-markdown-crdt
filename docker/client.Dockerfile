@@ -3,30 +3,16 @@ FROM node:18-alpine as build
 WORKDIR /app
 
 # Αντιγραφή μόνο των package.json και package-lock.json
-COPY client/package.json ./
+COPY client/package.json client/package-lock.json* ./
 
-# Εγκατάσταση των εξαρτήσεων
+# Εγκατάσταση όλων των εξαρτήσεων μαζί για να αποφευχθούν προβλήματα με διπλές εκδόσεις React
 RUN npm install
-
-# Προσθήκη των missing dependencies
-RUN npm install --save @chakra-ui/icons
-
-# Add WebSocket dependencies
-RUN npm install --save y-websocket
-
-# Το framer-motion ήδη υπάρχει στο package.json, οπότε δεν χρειάζεται ξεχωριστή εγκατάσταση
 
 # Αντιγραφή του πηγαίου κώδικα
 COPY client/ ./
 
-# Διόρθωση του commonPrefixLength
-RUN sed -i 's/const commonPrefixLength = 0;/let commonPrefixLength = 0;/g' src/components/Editor/Editor.jsx
-
-# Εμφάνιση των αρχείων για διαγνωστικούς λόγους
-RUN find . -type f -name "*.jsx" | xargs grep -l "commonPrefixLength"
-
-# Build της εφαρμογής με παράκαμψη των σφαλμάτων αν είναι δυνατόν
-RUN npm run build || (cat /root/.npm/_logs/*-debug.log && exit 1)
+# Build της εφαρμογής
+RUN npm run build
 
 # Production stage
 FROM nginx:alpine

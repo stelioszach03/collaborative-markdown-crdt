@@ -4,9 +4,17 @@ import { WebsocketProvider } from 'y-websocket';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@chakra-ui/react';
 
-const DocumentContext = createContext();
+// Δημιουργία Context
+const DocumentContext = createContext(null);
 
-export const useDocument = () => useContext(DocumentContext);
+// Custom hook για την πρόσβαση στο context
+export const useDocument = () => {
+  const context = useContext(DocumentContext);
+  if (context === null) {
+    throw new Error('useDocument must be used within a DocumentProvider');
+  }
+  return context;
+};
 
 export const DocumentProvider = ({ children }) => {
   const [documents, setDocuments] = useState([]);
@@ -18,15 +26,31 @@ export const DocumentProvider = ({ children }) => {
   const [ydoc, setYdoc] = useState(null);
   const [awareness, setAwareness] = useState(null);
   const [text, setText] = useState('');
-  const [userId] = useState(() => localStorage.getItem('userId') || uuidv4());
-  const [username, setUsername] = useState(() => localStorage.getItem('username') || 'Guest');
+  
+  // Αποθήκευση userId στο localStorage ή δημιουργία νέου
+  const [userId] = useState(() => {
+    const storedId = localStorage.getItem('userId');
+    if (storedId) return storedId;
+    const newId = uuidv4();
+    localStorage.setItem('userId', newId);
+    return newId;
+  });
+  
+  // Αποθήκευση username στο localStorage ή χρήση default
+  const [username, setUsername] = useState(() => {
+    const storedName = localStorage.getItem('username');
+    return storedName || 'Guest';
+  });
+  
+  // Δημιουργία σταθερού χρώματος για τον χρήστη
   const [userColor] = useState(() => getRandomColor(userId));
+  
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [activeUsers, setActiveUsers] = useState(new Map());
   const toast = useToast();
 
-  // Εκκίνηση και αρχικοποίηση του χρήστη
+  // Αρχικοποίηση χρήστη
   useEffect(() => {
     localStorage.setItem('userId', userId);
     if (!localStorage.getItem('username')) {
@@ -103,7 +127,7 @@ export const DocumentProvider = ({ children }) => {
 
   // Σύνδεση σε έγγραφο
   const connectToDocument = useCallback((docId, docName = 'Untitled Document') => {
-    // Αν έχουμε ήδη έναν provider για αυτό το έγγραφο, επιστρέφουμε τα υπάρχοντα αντικείμενα
+    // Έλεγχος για υπάρχοντα provider
     if (providerRef.current && currentDoc && currentDoc.id === docId) {
       console.log(`Already connected to document: ${docId}`);
       return { 
@@ -124,25 +148,18 @@ export const DocumentProvider = ({ children }) => {
       const newYdoc = new Y.Doc();
       setYdoc(newYdoc);
 
-      // Διαμόρφωση URL WebSocket μέσω του Nginx proxy
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/ws`;
-      console.log(`Connecting to WebSocket server via proxy: ${wsUrl}, document: ${docId}`);
+      // Διαμόρφωση URL WebSocket
+      const wsUrl = getWebSocketUrl();
+      console.log(`Connecting to WebSocket: ${wsUrl}, document: ${docId}`);
 
-      // Σύνδεση WebSocket με βελτιωμένες ρυθμίσεις
-      const newProvider = new WebsocketProvider(
-        wsUrl,
-        docId,
-        newYdoc,
-        { 
-          connect: true,
-          maxBackoffTime: 10000,
-          disableBc: true,
-        }
-      );
+      // Σύνδεση με WebSocket
+      const newProvider = new WebsocketProvider(wsUrl, docId, newYdoc, { 
+        connect: true,
+        maxBackoffTime: 10000,
+        disableBc: true,
+      });
 
-      // Αποθήκευση του provider
+      // Αποθήκευση provider
       providerRef.current = newProvider;
       setProvider(newProvider);
 
@@ -172,6 +189,7 @@ export const DocumentProvider = ({ children }) => {
         }
       });
 
+      // Χειρισμός σφαλμάτων σύνδεσης
       newProvider.on('connection-error', (error) => {
         console.error('WebSocket connection error:', error);
         setError(`Connection error: ${error.message || 'Unknown error'}`);
@@ -219,6 +237,13 @@ export const DocumentProvider = ({ children }) => {
     }
   }, [currentDoc, toast, userId, username, userColor]);
 
+  // Δημιουργία WebSocket URL
+  const getWebSocketUrl = () => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}/ws`;
+  };
+
   // Δημιουργία νέου εγγράφου
   const createDocument = useCallback(async (name = 'Untitled Document') => {
     try {
@@ -260,7 +285,7 @@ export const DocumentProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [documents, connectToDocument, toast]);
+  }, [connectToDocument, toast]);
 
   // Ενημέρωση ονόματος εγγράφου
   const updateDocumentName = useCallback(async (docId, newName) => {
@@ -357,7 +382,7 @@ export const DocumentProvider = ({ children }) => {
       '#10B981', '#F472B6', '#60A5FA', '#FBBF24'
     ];
     
-    // Απλή συνάρτηση hash για συνεπές αποτέλεσμα
+    // Συνάρτηση hash για συνεπές αποτέλεσμα
     const hash = id.split('').reduce((acc, char) => {
       return acc + char.charCodeAt(0);
     }, 0);
@@ -390,6 +415,7 @@ export const DocumentProvider = ({ children }) => {
     });
   }, [awareness, toast]);
 
+  // Παρέχουμε τις λειτουργίες και τα δεδομένα στα παιδιά
   return (
     <DocumentContext.Provider value={{
       documents,
