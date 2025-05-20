@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
-import { setupWSConnection } from 'y-websocket/bin/utils.js';
+import { setupWSConnection } from './utils/wsServer.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -55,10 +55,7 @@ if (process.env.NODE_ENV === 'production') {
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
-  setupWSConnection(ws, req, {
-    docName: req.url.slice(1), // Remove leading slash from URL to get document name
-    gc: true // Enable garbage collection
-  });
+  setupWSConnection(ws, req);
   console.log(`Client connected to document: ${req.url.slice(1)}`);
 });
 

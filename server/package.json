@@ -16,8 +16,8 @@
     "uuid": "^9.0.1",
     "ws": "^8.16.0",
     "yjs": "^13.6.10",
-    "y-websocket": "^1.5.1",
-    "y-protocols": "^1.0.5"
+    "y-protocols": "^1.0.5",
+    "lib0": "^0.2.87"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

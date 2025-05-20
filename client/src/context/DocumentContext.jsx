@@ -57,10 +57,10 @@ export const DocumentProvider = ({ children }) => {
     const newYdoc = new Y.Doc();
     setYdoc(newYdoc);
 
-    // Get the WebSocket URL
+    // Get the WebSocket URL - απευθείας σύνδεση στο port 5001
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}`;
+    const wsUrl = `${protocol}//localhost:5001`;
+    console.log(`Connecting directly to WebSocket server: ${wsUrl}, document: ${docId}`);
 
     // Connect to WebSocket
     const newProvider = new WebsocketProvider(
@@ -69,6 +69,15 @@ export const DocumentProvider = ({ children }) => {
       newYdoc,
       { connect: true }
     );
+
+    // Logging connection status
+    newProvider.on('status', ({ status }) => {
+      console.log(`WebSocket status: ${status}`);
+    });
+
+    newProvider.on('connection-error', (error) => {
+      console.error('WebSocket connection error:', error);
+    });
 
     // Set up awareness (user presence)
     newProvider.awareness.setLocalState({
