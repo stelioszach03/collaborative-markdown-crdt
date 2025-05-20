@@ -14,6 +14,8 @@ RUN npm install --save @chakra-ui/icons
 # Add WebSocket dependencies
 RUN npm install --save y-websocket
 
+# Το framer-motion ήδη υπάρχει στο package.json, οπότε δεν χρειάζεται ξεχωριστή εγκατάσταση
+
 # Αντιγραφή του πηγαίου κώδικα
 COPY client/ ./
 
