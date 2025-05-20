@@ -73,13 +73,12 @@ const Editor = ({ docId }) => {
     if (newText === oldText) return;
     
     // Find the diff and apply it
-    // This is a simple implementation; a real-world solution would use a more sophisticated diff algorithm
     if (oldText.length === 0) {
       // Insert all text
       insertText(0, newText);
     } else if (newText.length > oldText.length) {
       // Text was added
-      let commonPrefixLength = 0; 
+      let commonPrefixLength = 0;
       for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
         if (oldText[i] !== newText[i]) break;
         commonPrefixLength++;
@@ -94,7 +93,7 @@ const Editor = ({ docId }) => {
       insertText(commonPrefixLength, addedText);
     } else {
       // Text was deleted
-      const commonPrefixLength = 0;
+      let commonPrefixLength = 0;
       for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
         if (oldText[i] !== newText[i]) break;
         commonPrefixLength++;
@@ -113,13 +112,16 @@ const Editor = ({ docId }) => {
     
     const formattedText = insertMarkdown(text, syntax, selection, options);
     
-    // Replace the entire text
-    // In a real implementation, we would calculate the diff and apply targeted changes
-    deleteText(0, text.length);
-    insertText(0, formattedText);
-    
-    // Focus back on the editor
-    textareaRef.current.focus();
+    // Calculate the diff and apply targeted changes
+    if (formattedText !== text) {
+      // For simplicity, we're replacing the entire text
+      // In a production app, you would calculate a more precise diff
+      deleteText(0, text.length);
+      insertText(0, formattedText);
+      
+      // Focus back on the editor
+      textareaRef.current.focus();
+    }
   }, [ytext, text, selection, deleteText, insertText]);
 
   // Handle keyboard shortcuts

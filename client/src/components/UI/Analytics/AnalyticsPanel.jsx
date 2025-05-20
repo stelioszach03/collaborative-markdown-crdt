@@ -17,7 +17,9 @@ import {
   Badge,
   HStack,
   Progress,
-  useToken
+  useToken,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 import { 
   FaEdit, 
@@ -31,6 +33,7 @@ import { useDocument } from '../../../context/DocumentContext';
 const AnalyticsPanel = ({ docId }) => {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { text } = useDocument();
   
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -40,42 +43,53 @@ const AnalyticsPanel = ({ docId }) => {
   const [blue500] = useToken('colors', ['blue.500']);
 
   useEffect(() => {
-    // In a real application, this would fetch actual analytics data
-    // Here we'll simulate some data for demonstration purposes
+    if (!docId) return;
+    
     const fetchAnalyticsData = async () => {
       setLoading(true);
+      setError(null);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Generate mock data
-      const data = {
-        totalEdits: Math.floor(Math.random() * 500) + 100,
-        editsTrend: Math.random() > 0.5 ? Math.floor(Math.random() * 20) + 5 : -Math.floor(Math.random() * 20) - 5,
-        collaborators: Math.floor(Math.random() * 5) + 2,
-        collaboratorsTrend: Math.random() > 0.5 ? Math.floor(Math.random() * 3) + 1 : 0,
-        timeSpent: Math.floor(Math.random() * 120) + 30, // minutes
-        timeSpentTrend: Math.random() > 0.5 ? Math.floor(Math.random() * 30) + 5 : -Math.floor(Math.random() * 30) - 5,
-        revisions: Math.floor(Math.random() * 50) + 10,
-        revisionsTrend: Math.random() > 0.5 ? Math.floor(Math.random() * 10) + 1 : -Math.floor(Math.random() * 10) - 1,
-        lastSaved: new Date(Date.now() - Math.floor(Math.random() * 3600000)),
-        wordCount: text.split(/\s+/).filter(Boolean).length,
-        characterCount: text.length,
-        headingCount: (text.match(/^#+\s+/gm) || []).length,
-        listItemCount: (text.match(/^[\s]*[-*+]\s+/gm) || []).length + (text.match(/^[\s]*\d+\.\s+/gm) || []).length,
-      };
-      
-      setAnalyticsData(data);
-      setLoading(false);
+      try {
+        const response = await fetch(`/api/documents/${docId}/analytics`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch document analytics');
+        }
+        
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (err) {
+        console.error('Error fetching document analytics:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
     
     fetchAnalyticsData();
     
-    // Set up interval to refresh data (simulating real-time updates)
+    // Set up interval to refresh data every 30 seconds
     const intervalId = setInterval(fetchAnalyticsData, 30000);
     
     return () => clearInterval(intervalId);
   }, [docId, text]);
+
+  if (error) {
+    return (
+      <Box
+        h="full"
+        bg={bgColor}
+        borderRadius="md"
+        overflow="hidden"
+        p="4"
+      >
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -90,7 +104,7 @@ const AnalyticsPanel = ({ docId }) => {
         <Badge colorScheme="purple">Live</Badge>
       </Flex>
       
-      {loading ? (
+      {loading || !analyticsData ? (
         <Flex h="80%" justifyContent="center" alignItems="center">
           <Spinner size="xl" color="purple.500" />
         </Flex>
@@ -114,7 +128,9 @@ const AnalyticsPanel = ({ docId }) => {
                     <StatLabel>Total Edits</StatLabel>
                     <StatNumber>{analyticsData.totalEdits}</StatNumber>
                     <StatHelpText>
-                      <StatArrow type={analyticsData.editsTrend > 0 ? "increase" : "decrease"} />
+                      {analyticsData.editsTrend !== 0 && (
+                        <StatArrow type={analyticsData.editsTrend > 0 ? "increase" : "decrease"} />
+                      )}
                       {Math.abs(analyticsData.editsTrend)}% from last session
                     </StatHelpText>
                   </Box>
@@ -170,7 +186,9 @@ const AnalyticsPanel = ({ docId }) => {
                     <StatLabel>Time Spent</StatLabel>
                     <StatNumber>{analyticsData.timeSpent} min</StatNumber>
                     <StatHelpText>
-                      <StatArrow type={analyticsData.timeSpentTrend > 0 ? "increase" : "decrease"} />
+                      {analyticsData.timeSpentTrend !== 0 && (
+                        <StatArrow type={analyticsData.timeSpentTrend > 0 ? "increase" : "decrease"} />
+                      )}
                       {Math.abs(analyticsData.timeSpentTrend)} min from last session
                     </StatHelpText>
                   </Box>
@@ -195,7 +213,9 @@ const AnalyticsPanel = ({ docId }) => {
                     <StatLabel>Revisions</StatLabel>
                     <StatNumber>{analyticsData.revisions}</StatNumber>
                     <StatHelpText>
-                      <StatArrow type={analyticsData.revisionsTrend > 0 ? "increase" : "decrease"} />
+                      {analyticsData.revisionsTrend !== 0 && (
+                        <StatArrow type={analyticsData.revisionsTrend > 0 ? "increase" : "decrease"} />
+                      )}
                       {Math.abs(analyticsData.revisionsTrend)} from yesterday
                     </StatHelpText>
                   </Box>
@@ -211,7 +231,7 @@ const AnalyticsPanel = ({ docId }) => {
               <HStack>
                 <FaRegSave size="14px" />
                 <Text fontSize="xs">
-                  Last saved: {analyticsData.lastSaved.toLocaleTimeString()}
+                  Last saved: {new Date(analyticsData.lastSaved).toLocaleTimeString()}
                 </Text>
               </HStack>
             </Flex>
@@ -260,4 +280,4 @@ const AnalyticsPanel = ({ docId }) => {
   );
 };
 
-export default AnalyticsPanel;
+export default AnalyticsPanel; 

@@ -18,6 +18,7 @@ export const DocumentProvider = ({ children }) => {
   const [text, setText] = useState('');
   const [userId] = useState(() => localStorage.getItem('userId') || uuidv4());
   const [username, setUsername] = useState(() => localStorage.getItem('username') || 'Guest');
+  const [userColor] = useState(() => getRandomColor(userId));
 
   // Initialize user ID
   useEffect(() => {
@@ -56,18 +57,24 @@ export const DocumentProvider = ({ children }) => {
     const newYdoc = new Y.Doc();
     setYdoc(newYdoc);
 
+    // Get the WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}`;
+
     // Connect to WebSocket
     const newProvider = new WebsocketProvider(
-      `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`,
+      wsUrl,
       docId,
-      newYdoc
+      newYdoc,
+      { connect: true }
     );
 
     // Set up awareness (user presence)
     newProvider.awareness.setLocalState({
       userId,
       username,
-      color: getRandomColor(userId),
+      color: userColor,
       cursor: null,
       selection: null,
     });
@@ -130,8 +137,11 @@ export const DocumentProvider = ({ children }) => {
       if (currentDoc && currentDoc.id === docId) {
         setCurrentDoc({ ...currentDoc, name: newName });
       }
+      
+      return updatedDoc;
     } catch (err) {
       setError(err.message);
+      throw err;
     }
   };
 
@@ -156,13 +166,16 @@ export const DocumentProvider = ({ children }) => {
         setAwareness(null);
         setText('');
       }
+      
+      return true;
     } catch (err) {
       setError(err.message);
+      throw err;
     }
   };
 
   // Utility function to generate a consistent color for a user
-  const getRandomColor = (id) => {
+  function getRandomColor(id) {
     const colors = [
       '#FF6B6B', '#4ECDC4', '#FF9F1C', '#A78BFA', 
       '#10B981', '#F472B6', '#60A5FA', '#FBBF24'
@@ -174,7 +187,7 @@ export const DocumentProvider = ({ children }) => {
     }, 0);
     
     return colors[hash % colors.length];
-  };
+  }
 
   const updateUsername = (newUsername) => {
     setUsername(newUsername);
@@ -203,6 +216,7 @@ export const DocumentProvider = ({ children }) => {
       awareness,
       userId,
       username,
+      userColor,
       connectToDocument,
       createDocument,
       updateDocumentName,

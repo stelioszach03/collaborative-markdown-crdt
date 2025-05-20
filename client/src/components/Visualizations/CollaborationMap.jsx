@@ -11,7 +11,8 @@ import {
   Avatar,
   VStack,
   Tooltip,
-  useToken
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 import {
   PieChart,
@@ -25,6 +26,7 @@ import { useDocument } from '../../context/DocumentContext';
 const CollaborationMap = ({ docId }) => {
   const [collaborationData, setCollaborationData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { awareness, username } = useDocument();
   
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -34,32 +36,36 @@ const CollaborationMap = ({ docId }) => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#AFB4FF'];
 
   useEffect(() => {
-    // In a real application, this would fetch actual collaboration data
-    // Here we'll simulate some data for demonstration purposes
+    if (!docId) return;
+    
     const fetchCollaborationData = async () => {
       setLoading(true);
+      setError(null);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      // Create some mock users, including the current user
-      const users = [
-        { id: 'user1', username: username, color: '#0088FE', edits: Math.floor(Math.random() * 100) + 50 },
-        { id: 'user2', username: 'Alice', color: '#00C49F', edits: Math.floor(Math.random() * 80) + 20 },
-        { id: 'user3', username: 'Bob', color: '#FFBB28', edits: Math.floor(Math.random() * 60) + 10 },
-        { id: 'user4', username: 'Carol', color: '#FF8042', edits: Math.floor(Math.random() * 40) + 5 },
-      ];
-      
-      // Convert to chart data
-      const pieData = users.map(user => ({
-        name: user.username,
-        value: user.edits,
-        color: user.color,
-        isCurrentUser: user.username === username
-      }));
-      
-      setCollaborationData(pieData);
-      setLoading(false);
+      try {
+        const response = await fetch(`/api/documents/${docId}/collaboration`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch collaboration data');
+        }
+        
+        const data = await response.json();
+        
+        // Convert to chart data
+        const pieData = data.map(user => ({
+          name: user.username,
+          value: user.edits,
+          color: user.color,
+          isCurrentUser: user.username === username
+        }));
+        
+        setCollaborationData(pieData);
+      } catch (err) {
+        console.error('Error fetching collaboration data:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
     
     fetchCollaborationData();
@@ -98,6 +104,23 @@ const CollaborationMap = ({ docId }) => {
     );
   };
 
+  if (error) {
+    return (
+      <Box
+        h="full"
+        bg={bgColor}
+        borderRadius="md"
+        overflow="hidden"
+        p="4"
+      >
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box
       h="full"
@@ -116,6 +139,13 @@ const CollaborationMap = ({ docId }) => {
       {loading ? (
         <Flex h="80%" justifyContent="center" alignItems="center">
           <Spinner size="xl" color="green.500" />
+        </Flex>
+      ) : collaborationData.length === 0 ? (
+        <Flex h="80%" justifyContent="center" alignItems="center" flexDirection="column">
+          <Text color={textColor} mb="2">No collaboration data yet</Text>
+          <Text fontSize="sm" color="gray.500">
+            Invite others to collaborate on this document
+          </Text>
         </Flex>
       ) : (
         <Flex h="85%" direction={{ base: "column", md: "row" }}>
@@ -169,7 +199,7 @@ const CollaborationMap = ({ docId }) => {
                 </HStack>
               ))}
               
-              {/* Add some inactive users for demonstration */}
+              {/* Add offline users from collaboration data */}
               {collaborationData
                 .filter(user => !Array.from(activeUsers.values()).some(au => au.username === user.name))
                 .map((user, index) => (

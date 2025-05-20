@@ -17,6 +17,8 @@ export function useCRDT(docId) {
   const [connected, setConnected] = useState(false);
   const [awarenessStates, setAwarenessStates] = useState(new Map());
   const [undoManager, setUndoManager] = useState(null);
+  const [lastEditTime, setLastEditTime] = useState(Date.now());
+  const [editDuration, setEditDuration] = useState(0);
 
   // Connect to document
   useEffect(() => {
@@ -65,6 +67,17 @@ export function useCRDT(docId) {
     };
   }, [awareness, userId]);
 
+  // Track edit duration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (connected) {
+        setEditDuration(prev => prev + 1);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [connected]);
+
   // Update cursor position
   const updateCursor = useCallback((position, selection = null) => {
     if (!awareness) return;
@@ -85,28 +98,74 @@ export function useCRDT(docId) {
     [updateCursor]
   );
 
-  // Insert text
+  // Insert text with metadata
   const insertText = useCallback((index, text) => {
     if (!ytext) return;
-    ytext.insert(index, text);
-  }, [ytext]);
+    
+    // Calculate time since last edit
+    const now = Date.now();
+    const timeSinceLastEdit = now - lastEditTime;
+    setLastEditTime(now);
+    
+    // Create origin object with metadata
+    const origin = {
+      userId,
+      username,
+      changeSize: text.length,
+      duration: Math.min(timeSinceLastEdit / 1000, 300), // Cap at 5 minutes
+      timestamp: now
+    };
+    
+    ytext.insert(index, text, origin);
+  }, [ytext, userId, username, lastEditTime]);
 
-  // Delete text
+  // Delete text with metadata
   const deleteText = useCallback((index, length) => {
     if (!ytext) return;
-    ytext.delete(index, length);
-  }, [ytext]);
+    
+    // Calculate time since last edit
+    const now = Date.now();
+    const timeSinceLastEdit = now - lastEditTime;
+    setLastEditTime(now);
+    
+    // Create origin object with metadata
+    const origin = {
+      userId,
+      username,
+      changeSize: -length,
+      duration: Math.min(timeSinceLastEdit / 1000, 300), // Cap at 5 minutes
+      timestamp: now
+    };
+    
+    ytext.delete(index, length, origin);
+  }, [ytext, userId, username, lastEditTime]);
 
   // Undo/Redo
   const undo = useCallback(() => {
     if (!undoManager) return;
-    undoManager.undo();
-  }, [undoManager]);
+    
+    const origin = {
+      userId,
+      username,
+      isRevision: true,
+      timestamp: Date.now()
+    };
+    
+    undoManager.undo(origin);
+  }, [undoManager, userId, username]);
 
   const redo = useCallback(() => {
     if (!undoManager) return;
-    undoManager.redo();
-  }, [undoManager]);
+    
+    const origin = {
+      userId,
+      username,
+      isRevision: true,
+      timestamp: Date.now()
+    };
+    
+    undoManager.redo(origin);
+  }, [undoManager, userId, username]);
 
   return {
     ytext,
@@ -119,5 +178,6 @@ export function useCRDT(docId) {
     debouncedUpdateCursor,
     undo,
     redo,
+    editDuration,
   };
 }

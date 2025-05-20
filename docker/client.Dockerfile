@@ -11,6 +11,9 @@ RUN npm install
 # Προσθήκη των missing dependencies
 RUN npm install --save @chakra-ui/icons
 
+# Add WebSocket dependencies
+RUN npm install --save y-websocket
+
 # Αντιγραφή του πηγαίου κώδικα
 COPY client/ ./
 
@@ -34,4 +37,4 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]  
+CMD ["nginx", "-g", "daemon off;"]

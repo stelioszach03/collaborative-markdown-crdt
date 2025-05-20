@@ -7,7 +7,9 @@ import {
   useColorModeValue,
   Spinner,
   Select,
-  useToken
+  useToken,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 import {
   LineChart,
@@ -24,6 +26,7 @@ import { format } from 'date-fns';
 const EditHistory = ({ docId }) => {
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('24h');
   const [blue500, blue300] = useToken('colors', ['blue.500', 'blue.300']);
   
@@ -33,48 +36,48 @@ const EditHistory = ({ docId }) => {
   const gridColor = useColorModeValue('gray.200', 'gray.700');
 
   useEffect(() => {
-    // In a real application, this would fetch actual edit history data
-    // Here we'll simulate some data for demonstration purposes
+    if (!docId) return;
+    
     const fetchHistoryData = async () => {
       setLoading(true);
+      setError(null);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Generate mock data
-      const now = new Date();
-      const data = [];
-      
-      let timePoints = 24;
-      let timeIncrement = 60 * 60 * 1000; // 1 hour in milliseconds
-      
-      if (timeRange === '7d') {
-        timePoints = 7;
-        timeIncrement = 24 * 60 * 60 * 1000; // 1 day
-      } else if (timeRange === '30d') {
-        timePoints = 30;
-        timeIncrement = 24 * 60 * 60 * 1000; // 1 day
-      }
-      
-      for (let i = 0; i < timePoints; i++) {
-        const timestamp = new Date(now.getTime() - (timePoints - i - 1) * timeIncrement);
+      try {
+        const response = await fetch(`/api/documents/${docId}/history?period=${timeRange}`);
         
-        data.push({
-          timestamp,
-          formattedTime: timeRange === '24h' 
-            ? format(timestamp, 'HH:mm') 
-            : format(timestamp, 'MMM dd'),
-          edits: Math.floor(Math.random() * 20) + 1,
-          characters: Math.floor(Math.random() * 200) + 10,
-        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch edit history');
+        }
+        
+        const data = await response.json();
+        setHistoryData(data);
+      } catch (err) {
+        console.error('Error fetching edit history:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-      
-      setHistoryData(data);
-      setLoading(false);
     };
     
     fetchHistoryData();
   }, [docId, timeRange]);
+
+  if (error) {
+    return (
+      <Box
+        h="full"
+        bg={bgColor}
+        borderRadius="md"
+        overflow="hidden"
+        p="4"
+      >
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -101,6 +104,13 @@ const EditHistory = ({ docId }) => {
       {loading ? (
         <Flex h="80%" justifyContent="center" alignItems="center">
           <Spinner size="xl" color="blue.500" />
+        </Flex>
+      ) : historyData.length === 0 ? (
+        <Flex h="80%" justifyContent="center" alignItems="center" flexDirection="column">
+          <Text color={textColor} mb="2">No edit history found</Text>
+          <Text fontSize="sm" color="gray.500">
+            Make some edits to start tracking history
+          </Text>
         </Flex>
       ) : (
         <Box p="2" h="85%">
