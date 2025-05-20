@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light theme */
+  --editor-bg: #ffffff;
+  --editor-text: #2d3748;
+  --editor-cursor: #0073ff;
+  --editor-selection: rgba(0, 115, 255, 0.2);
+  --editor-line: #e2e8f0;
+}
+
+.dark {
+  /* Dark theme */
+  --editor-bg: #1a202c;
+  --editor-text: #e2e8f0;
+  --editor-cursor: #63b3ed;
+  --editor-selection: rgba(99, 179, 237, 0.3);
+  --editor-line: #2d3748;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.markdown-editor {
+  font-family: 'Fira Code', monospace;
+  line-height: 1.6;
+}
+
+.user-cursor {
+  position: absolute;
+  width: 2px;
+  height: 18px;
+  pointer-events: none;
+  transition: transform 0.1s ease;
+}
+
+.user-label {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.presence-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+/* Transitions */
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+.fade-exit {
+  opacity: 1;
+}
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Markdown preview styles */
+.markdown-preview h1 {
+  @apply text-2xl font-bold mb-4 mt-6;
+}
+
+.markdown-preview h2 {
+  @apply text-xl font-bold mb-3 mt-5;
+}
+
+.markdown-preview h3 {
+  @apply text-lg font-bold mb-2 mt-4;
+}
+
+.markdown-preview p {
+  @apply mb-4;
+}
+
+.markdown-preview ul, .markdown-preview ol {
+  @apply mb-4 ml-5;
+}
+
+.markdown-preview ul {
+  @apply list-disc;
+}
+
+.markdown-preview ol {
+  @apply list-decimal;
+}
+
+.markdown-preview code {
+  @apply font-mono text-sm px-1 py-0.5 rounded;
+}
+
+.markdown-preview pre {
+  @apply font-mono text-sm p-3 rounded mb-4 overflow-x-auto;
+}
+
+.markdown-preview blockquote {
+  @apply border-l-4 pl-4 italic my-4;
+}
+
+.markdown-preview a {
+  @apply text-blue-600 hover:underline;
+}
+
+.markdown-preview table {
+  @apply w-full border-collapse mb-4;
+}
+
+.markdown-preview th, .markdown-preview td {
+  @apply border p-2;
+}
+
+.markdown-preview img {
+  @apply max-w-full h-auto;
+}

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Backend service
+  server:
+    build:
+      context: .
+      dockerfile: docker/server.Dockerfile
+    ports:
+      - "5001:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+    volumes:
+      - document-data:/app/documents
+    restart: unless-stopped
+    networks:
+      - app_network
+    
+  # Frontend service
+  client:
+    build:
+      context: .
+      dockerfile: docker/client.Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  document-data:
+    driver: local
