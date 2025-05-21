@@ -9,7 +9,7 @@ import {
   Badge,
   HStack,
   Avatar,
-  VStack,
+  VStack, // Προσθήκη του VStack εδώ
   Tooltip,
   Alert,
   AlertIcon

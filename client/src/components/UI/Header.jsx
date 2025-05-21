@@ -5,7 +5,8 @@ import {
   Popover, PopoverTrigger, PopoverContent, PopoverHeader, PopoverBody,
   PopoverFooter, FormControl, FormLabel, Input, Badge, Heading,
   Drawer, DrawerBody, DrawerHeader, DrawerOverlay, DrawerContent,
-  DrawerCloseButton, useDisclosure, Divider, Kbd, Icon, Spacer, ButtonGroup
+  DrawerCloseButton, useDisclosure, Divider, Kbd, Icon, Spacer, ButtonGroup,
+  VStack // Προσθήκη του VStack εδώ αν χρειάζεται
 } from '@chakra-ui/react';
 import { HamburgerIcon, ViewIcon, SettingsIcon, ChevronDownIcon, EditIcon, 
          SearchIcon, InfoIcon, AddIcon, CloseIcon, ChevronRightIcon } from '@chakra-ui/icons';

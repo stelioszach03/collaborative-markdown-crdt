@@ -6,7 +6,8 @@ import {
   Flex, 
   useColorModeValue, 
   Spinner,
-  Stack
+  Stack,
+  VStack // Είναι σημαντικό να υπάρχει αυτό εδώ
 } from '@chakra-ui/react';
 import Logo from './Logo';
 
@@ -65,7 +66,7 @@ const SplashScreen = ({ setShowSplash }) => {
       opacity={isExiting ? 0 : 1}
       transition="opacity 0.5s ease-in-out"
     >
-      <Stack spacing={6} align="center" textAlign="center">
+      <VStack spacing={6} align="center" textAlign="center">
         <Box 
           opacity={isExiting ? 0 : 1}
           transform={isExiting ? 'scale(0.9)' : 'scale(1)'}
@@ -74,7 +75,7 @@ const SplashScreen = ({ setShowSplash }) => {
           <Logo height="80px" />
         </Box>
         
-        <Stack spacing={1}>
+        <VStack spacing={1}>
           <Heading 
             size="xl" 
             color={textColor}
@@ -92,7 +93,7 @@ const SplashScreen = ({ setShowSplash }) => {
           >
             Collaborative Markdown Editor
           </Text>
-        </Stack>
+        </VStack>
         
         <Box mt={6}>
           <Spinner 
@@ -112,7 +113,7 @@ const SplashScreen = ({ setShowSplash }) => {
         >
           Φόρτωση εφαρμογής...
         </Text>
-      </Stack>
+      </VStack>
     </Flex>
   );
 };

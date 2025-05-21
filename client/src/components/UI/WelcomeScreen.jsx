@@ -5,6 +5,7 @@ import {
   Text, 
   Button, 
   Stack,
+  VStack, // Προσθήκη του VStack εδώ
   Flex, 
   useColorModeValue,
   Input, 
