@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box, 
-  VStack, // Προσθήκη του VStack εδώ
+  VStack,
   Text, 
   IconButton, 
   Button, 
@@ -15,7 +15,6 @@ import {
   MenuList, 
   MenuItem, 
   Tooltip, 
-  Avatar, 
   Badge, 
   useDisclosure, 
   Modal, 
@@ -33,17 +32,20 @@ import {
   Tag,
   FormControl, 
   FormLabel, 
-  Select
+  Select,
+  Avatar
 } from '@chakra-ui/react';
 import { 
   AddIcon, CloseIcon, SearchIcon, DeleteIcon, EditIcon, SettingsIcon,
-  ViewIcon, DownloadIcon, ExternalLinkIcon
+  ViewIcon, DownloadIcon, ExternalLinkIcon, CheckIcon
 } from '@chakra-ui/icons';
 import { FaFileAlt, FaTrash, FaRegClock, FaShareAlt, FaFolder, FaSort,
-         FaRegStar, FaStar, FaRegFolderOpen } from 'react-icons/fa';
+         FaRegStar, FaStar, FaRegFolderOpen, FaCodeBranch, FaFileCode,
+         FaStickyNote, FaBook, FaList, FaRegCalendarAlt, FaCalendarAlt } from 'react-icons/fa';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDocument } from '../../context/DocumentContext';
 import { format } from 'date-fns';
+import { motion } from 'framer-motion';
 
 const Sidebar = ({ onClose }) => {
   const { documents, createDocument, updateDocumentName, deleteDocument, isLoading } = useDocument();
@@ -60,11 +62,37 @@ const Sidebar = ({ onClose }) => {
   const [editingDocId, setEditingDocId] = useState(null);
   const [newDocName, setNewDocName] = useState('');
   const [sortBy, setSortBy] = useState('recent');
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem('favoriteDocuments');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
   const [showFavorites, setShowFavorites] = useState(false);
   const cancelRef = useRef();
+
+  // Get document type icon
+  const getDocumentIcon = (docName) => {
+    const name = docName.toLowerCase();
+    if (name.includes('readme')) return <FaBook />;
+    if (name.includes('meeting') || name.includes('notes')) return <FaStickyNote />;
+    if (name.includes('wiki')) return <FaCodeBranch />;
+    if (name.includes('project')) return <FaFileCode />;
+    if (name.includes('list')) return <FaList />;
+    if (name.includes('calendar') || name.includes('schedule')) return <FaCalendarAlt />;
+    return <FaFileAlt />;
+  };
+
+  // Animation variants for list items
+  const listItemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
+  useEffect(() => {
+    // Save favorites to localStorage whenever they change
+    localStorage.setItem('favoriteDocuments', JSON.stringify(favorites));
+  }, [favorites]);
 
   const handleCreateDocument = () => {
     createDocument('New Document').then(doc => {
@@ -97,9 +125,6 @@ const Sidebar = ({ onClose }) => {
     // Remove from favorites if needed
     if (favorites.includes(docToDelete.id)) {
       setFavorites(favorites.filter(fid => fid !== docToDelete.id));
-      localStorage.setItem('favoriteDocuments', JSON.stringify(
-        favorites.filter(fid => fid !== docToDelete.id)
-      ));
     }
     
     setIsDeleteModalOpen(false);
@@ -112,13 +137,12 @@ const Sidebar = ({ onClose }) => {
       : [...favorites, docId];
     
     setFavorites(newFavorites);
-    localStorage.setItem('favoriteDocuments', JSON.stringify(newFavorites));
   };
 
   // Sort and filter documents
-  let filteredDocuments = documents.filter(doc => 
+  let filteredDocuments = Array.isArray(documents) ? documents.filter(doc => 
     doc.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) : [];
 
   if (showFavorites) {
     filteredDocuments = filteredDocuments.filter(doc => favorites.includes(doc.id));
@@ -158,16 +182,21 @@ const Sidebar = ({ onClose }) => {
       <Flex direction="column" mb="6">
         <Flex align="center" justify="space-between" mb="4">
           <Text fontSize="xl" fontWeight="bold">Documents</Text>
-          <Tooltip label="Create new document">
-            <IconButton
-              icon={<AddIcon />}
-              colorScheme="blue"
-              size="sm"
-              onClick={handleCreateDocument}
-              aria-label="New Document"
-              isRound
-            />
-          </Tooltip>
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Tooltip label="Create new document">
+              <IconButton
+                icon={<AddIcon />}
+                colorScheme="blue"
+                size="sm"
+                onClick={handleCreateDocument}
+                aria-label="New Document"
+                isRound
+              />
+            </Tooltip>
+          </motion.div>
         </Flex>
         
         <HStack mb="4" spacing="2">
@@ -203,7 +232,7 @@ const Sidebar = ({ onClose }) => {
               <MenuItem onClick={() => setSortBy('name')} icon={sortBy === 'name' ? <FaFileAlt color="blue" /> : <FaFileAlt />}>
                 Name
               </MenuItem>
-              <MenuItem onClick={() => setSortBy('created')} icon={sortBy === 'created' ? <FaRegClock color="blue" /> : <FaRegClock />}>
+              <MenuItem onClick={() => setSortBy('created')} icon={sortBy === 'created' ? <FaRegCalendarAlt color="blue" /> : <FaRegCalendarAlt />}>
                 Recently Created
               </MenuItem>
             </MenuList>
@@ -230,142 +259,159 @@ const Sidebar = ({ onClose }) => {
             <Spinner size="md" color="blue.500" />
           </Flex>
         ) : filteredDocuments.length > 0 ? (
-          filteredDocuments.map(doc => (
-            <Box key={doc.id}>
-              {editingDocId === doc.id ? (
-                <HStack p="2">
-                  <Input
-                    value={newDocName}
-                    onChange={(e) => setNewDocName(e.target.value)}
-                    size="sm"
-                    autoFocus
-                    onBlur={() => handleRenameDocument(doc.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleRenameDocument(doc.id);
-                      } else if (e.key === 'Escape') {
-                        setEditingDocId(null);
-                      }
-                    }}
-                  />
-                  <IconButton
-                    icon={<CheckIcon />}
-                    size="sm"
-                    onClick={() => handleRenameDocument(doc.id)}
-                    aria-label="Save"
-                  />
-                </HStack>
-              ) : (
-                <Flex
-                  as={Link}
-                  to={`/documents/${doc.id}`}
-                  p="3"
-                  borderRadius="md"
-                  bg={id === doc.id ? activeBgColor : 'transparent'}
-                  color={id === doc.id ? activeTextColor : 'inherit'}
-                  _hover={{
-                    bg: id === doc.id ? activeBgColor : hoverBgColor,
-                    textDecoration: 'none'
-                  }}
-                  alignItems="center"
-                  justifyContent="space-between"
-                  transition="all 0.2s"
-                >
-                  <HStack spacing="3" flex="1" overflow="hidden">
-                    <Box color={id === doc.id ? activeTextColor : mutedTextColor}>
-                      <FaFileAlt />
-                    </Box>
-                    <Box overflow="hidden">
-                      <Text noOfLines={1} fontWeight={id === doc.id ? "600" : "normal"}>
-                        {doc.name}
-                      </Text>
-                      <Text fontSize="xs" color={mutedTextColor} noOfLines={1}>
-                        {format(new Date(doc.updatedAt), 'MMM d, yyyy • h:mm a')}
-                      </Text>
-                    </Box>
-                  </HStack>
-                  
-                  <HStack spacing="1">
-                    <Tooltip label={favorites.includes(doc.id) ? "Remove from favorites" : "Add to favorites"}>
-                      <IconButton
-                        icon={favorites.includes(doc.id) ? <FaStar /> : <FaRegStar />}
-                        size="xs"
-                        variant="ghost"
-                        color={favorites.includes(doc.id) ? "yellow.500" : undefined}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleFavorite(doc.id);
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.05
+                }
+              }
+            }}
+          >
+            {filteredDocuments.map((doc, index) => (
+              <motion.div
+                key={doc.id}
+                variants={listItemVariants}
+                transition={{ duration: 0.2 }}
+              >
+                <Box>
+                  {editingDocId === doc.id ? (
+                    <HStack p="2">
+                      <Input
+                        value={newDocName}
+                        onChange={(e) => setNewDocName(e.target.value)}
+                        size="sm"
+                        autoFocus
+                        onBlur={() => handleRenameDocument(doc.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleRenameDocument(doc.id);
+                          } else if (e.key === 'Escape') {
+                            setEditingDocId(null);
+                          }
                         }}
-                        aria-label={favorites.includes(doc.id) ? "Remove from favorites" : "Add to favorites"}
                       />
-                    </Tooltip>
-                    
-                    <Menu>
-                      <MenuButton
-                        as={IconButton}
-                        icon={<SettingsIcon />}
-                        size="xs"
-                        variant="ghost"
-                        onClick={(e) => e.preventDefault()}
-                        aria-label="Document Settings"
-                        opacity="0.7"
-                        _hover={{ opacity: 1 }}
+                      <IconButton
+                        icon={<CheckIcon />}
+                        size="sm"
+                        onClick={() => handleRenameDocument(doc.id)}
+                        aria-label="Save"
                       />
-                      <MenuList zIndex="1000">
-                        <MenuItem
-                          icon={<EditIcon />}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setNewDocName(doc.name);
-                            setEditingDocId(doc.id);
-                          }}
-                        >
-                          Rename
-                        </MenuItem>
-                        <MenuItem
-                          icon={<FaShareAlt />}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(
-                              `${window.location.origin}/documents/${doc.id}`
-                            );
-                          }}
-                        >
-                          Copy Link
-                        </MenuItem>
-                        <MenuItem
-                          icon={<DownloadIcon />}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Placeholder for export functionality
-                            alert('Export functionality is coming soon!');
-                          }}
-                        >
-                          Export
-                        </MenuItem>
-                        <Divider />
-                        <MenuItem
-                          icon={<DeleteIcon />}
-                          color="red.500"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            confirmDeleteDocument(doc);
-                          }}
-                        >
-                          Delete
-                        </MenuItem>
-                      </MenuList>
-                    </Menu>
-                  </HStack>
-                </Flex>
-              )}
-            </Box>
-          ))
+                    </HStack>
+                  ) : (
+                    <Flex
+                      as={Link}
+                      to={`/documents/${doc.id}`}
+                      p="3"
+                      borderRadius="md"
+                      bg={id === doc.id ? activeBgColor : 'transparent'}
+                      color={id === doc.id ? activeTextColor : 'inherit'}
+                      _hover={{
+                        bg: id === doc.id ? activeBgColor : hoverBgColor,
+                        textDecoration: 'none'
+                      }}
+                      alignItems="center"
+                      justifyContent="space-between"
+                      transition="all 0.2s"
+                    >
+                      <HStack spacing="3" flex="1" overflow="hidden">
+                        <Box color={id === doc.id ? activeTextColor : mutedTextColor}>
+                          {getDocumentIcon(doc.name)}
+                        </Box>
+                        <Box overflow="hidden">
+                          <Text noOfLines={1} fontWeight={id === doc.id ? "600" : "normal"}>
+                            {doc.name}
+                          </Text>
+                          <Text fontSize="xs" color={mutedTextColor} noOfLines={1}>
+                            {format(new Date(doc.updatedAt), 'MMM d, yyyy • h:mm a')}
+                          </Text>
+                        </Box>
+                      </HStack>
+                      
+                      <HStack spacing="1">
+                        <Tooltip label={favorites.includes(doc.id) ? "Remove from favorites" : "Add to favorites"}>
+                          <IconButton
+                            icon={favorites.includes(doc.id) ? <FaStar /> : <FaRegStar />}
+                            size="xs"
+                            variant="ghost"
+                            color={favorites.includes(doc.id) ? "yellow.500" : undefined}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleFavorite(doc.id);
+                            }}
+                            aria-label={favorites.includes(doc.id) ? "Remove from favorites" : "Add to favorites"}
+                          />
+                        </Tooltip>
+                        
+                        <Menu>
+                          <MenuButton
+                            as={IconButton}
+                            icon={<SettingsIcon />}
+                            size="xs"
+                            variant="ghost"
+                            onClick={(e) => e.preventDefault()}
+                            aria-label="Document Settings"
+                            opacity="0.7"
+                            _hover={{ opacity: 1 }}
+                          />
+                          <MenuList zIndex="1000">
+                            <MenuItem
+                              icon={<EditIcon />}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setNewDocName(doc.name);
+                                setEditingDocId(doc.id);
+                              }}
+                            >
+                              Rename
+                            </MenuItem>
+                            <MenuItem
+                              icon={<FaShareAlt />}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(
+                                  `${window.location.origin}/documents/${doc.id}`
+                                );
+                              }}
+                            >
+                              Copy Link
+                            </MenuItem>
+                            <MenuItem
+                              icon={<DownloadIcon />}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // Placeholder for export functionality
+                              }}
+                            >
+                              Export
+                            </MenuItem>
+                            <Divider />
+                            <MenuItem
+                              icon={<DeleteIcon />}
+                              color="red.500"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                confirmDeleteDocument(doc);
+                              }}
+                            >
+                              Delete
+                            </MenuItem>
+                          </MenuList>
+                        </Menu>
+                      </HStack>
+                    </Flex>
+                  )}
+                </Box>
+              </motion.div>
+            ))}
+          </motion.div>
         ) : searchTerm ? (
           <Box 
             p="6" 
@@ -417,7 +463,7 @@ const Sidebar = ({ onClose }) => {
               leftIcon={<AddIcon />}
               colorScheme="blue"
               size="sm"
-              variant="outline"
+              variant="solid"
               onClick={handleCreateDocument}
             >
               Create Your First Document
@@ -426,20 +472,35 @@ const Sidebar = ({ onClose }) => {
         )}
       </VStack>
       
-      {/* Divider and info section */}
-      <Divider mb="4" />
-      
-      <Box>
+      {/* Storage info */}
+      <Box mb="3" p="3" borderRadius="md" bg={useColorModeValue('white', 'gray.700')}>
         <HStack mb="2">
-          <FaFolder />
-          <Text fontWeight="medium">Storage</Text>
+          <FaFolder size="14px" />
+          <Text fontWeight="medium" fontSize="sm">Storage</Text>
         </HStack>
-        <Text fontSize="sm" color={mutedTextColor} mb="1">
-          {documents.length} document{documents.length !== 1 ? 's' : ''}
-        </Text>
-        <Text fontSize="sm" color={mutedTextColor}>
-          {favorites.length} favorite{favorites.length !== 1 ? 's' : ''}
-        </Text>
+        
+        <Flex align="center" justify="space-between">
+          <Text fontSize="sm" color={mutedTextColor}>
+            {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''}
+          </Text>
+          <Text fontSize="sm" color={mutedTextColor}>
+            {favorites.length} favorite{favorites.length !== 1 ? 's' : ''}
+          </Text>
+        </Flex>
+      </Box>
+      
+      {/* Active users (if implemented) */}
+      <Box p="3" borderRadius="md" bg={useColorModeValue('white', 'gray.700')}>
+        <HStack mb="2">
+          <Avatar size="2xs" bg="green.500" />
+          <Text fontWeight="medium" fontSize="sm">Active Now</Text>
+        </HStack>
+        
+        <HStack spacing="1" mt="2">
+          <Avatar size="xs" name="Guest" bg="blue.500" />
+          <Text fontSize="sm">You</Text>
+          <Badge ml="auto" colorScheme="green" variant="subtle" fontSize="xs">Active</Badge>
+        </HStack>
       </Box>
       
       {/* Delete confirmation modal */}

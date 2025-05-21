@@ -10,9 +10,10 @@ import {
   Spinner,
   Center,
   Text,
-  useColorModeValue
+  useColorModeValue,
+  useToast
 } from '@chakra-ui/react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import Header from './components/UI/Header';
 import Sidebar from './components/UI/Sidebar';
 import { useDocument } from './context/DocumentContext';
@@ -44,25 +45,67 @@ const App = () => {
   const { colorMode } = useColorMode();
   
   // Document context
-  const { text, currentDoc, isLoading, isInitialLoad, createDocument } = useDocument();
+  const { text, currentDoc, isLoading, isInitialLoad, connectionStatus, createDocument, refreshConnection } = useDocument();
   
   // Media queries for responsive layout
   const [isLargerThan1280] = useMediaQuery('(min-width: 1280px)');
+  const [isLargerThan768] = useMediaQuery('(min-width: 768px)');
+  
+  // Panel sizing - allow user to resize panels
+  const [previewSize, setPreviewSize] = useState(isLargerThan1280 ? 45 : 40);
   
   // SplashScreen management
   const [showSplash, setShowSplash] = useState(true);
   const location = useLocation();
+  const toast = useToast();
 
   // Colors based on theme
   const bgColor = useColorModeValue('white', 'gray.900');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const textColor = useColorModeValue('gray.800', 'gray.100');
 
+  // Show toast for connection status changes
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      toast({
+        title: "Connected",
+        description: "Real-time collaboration is active",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right"
+      });
+    } else if (connectionStatus === 'disconnected') {
+      toast({
+        title: "Disconnected",
+        description: "Attempting to reconnect...",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        onCloseComplete: () => {
+          // Offer to refresh connection
+          if (connectionStatus === 'disconnected') {
+            toast({
+              title: "Still disconnected",
+              description: "Would you like to try reconnecting?",
+              status: "error",
+              duration: null,
+              isClosable: true,
+              position: "bottom-right",
+              action: <Box onClick={refreshConnection} cursor="pointer" fontWeight="bold">Reconnect</Box>
+            });
+          }
+        }
+      });
+    }
+  }, [connectionStatus, toast, refreshConnection]);
+
   // Hide splash screen after a delay
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 3000);
+    }, 1500); // Shorter time for better UX
     
     return () => clearTimeout(timer);
   }, []);
@@ -73,6 +116,8 @@ const App = () => {
       const isSmallScreen = window.innerWidth < 768;
       if (isSmallScreen) {
         onClose();
+      } else if (window.innerWidth > 1200) {
+        onOpen();
       }
     };
     
@@ -80,7 +125,25 @@ const App = () => {
     window.addEventListener('resize', checkScreenSize);
     
     return () => window.removeEventListener('resize', checkScreenSize);
-  }, [location.pathname, onClose]);
+  }, [location.pathname, onClose, onOpen]);
+
+  // Handle resize of preview panel
+  const handleResize = (e) => {
+    if (!isLargerThan768) return;
+    
+    const container = document.getElementById('editor-container');
+    if (!container) return;
+    
+    const containerWidth = container.clientWidth;
+    const mouseX = e.clientX;
+    const sidebarWidth = isOpen ? 280 : 0;
+    const percentage = ((mouseX - sidebarWidth) / containerWidth) * 100;
+    
+    // Constrain the preview size between 30% and 70%
+    if (percentage >= 30 && percentage <= 70) {
+      setPreviewSize(100 - percentage);
+    }
+  };
 
   // Loading fallback component for lazy-loaded components
   const LoadingFallback = () => (
@@ -119,20 +182,21 @@ const App = () => {
             in={isOpen} 
             style={{ 
               zIndex: 20, 
-              position: 'absolute', 
+              position: isLargerThan768 ? 'relative' : 'absolute', 
               height: 'calc(100vh - 56px)', 
-              top: '56px',
-              width: { base: "85vw", md: "280px" }
+              top: isLargerThan768 ? 0 : '56px',
+              width: isLargerThan768 ? '280px' : '85vw',
             }}
           >
             <Box
-              w={{ base: "85vw", md: "280px" }}
+              w={isLargerThan768 ? "280px" : "85vw"}
               h="full"
               bg={useColorModeValue('white', 'gray.800')}
               borderRight="1px"
               borderColor={borderColor}
               boxShadow={{ base: "lg", md: "none" }}
               transition="all 0.3s"
+              overflow="hidden"
             >
               <Sidebar onClose={onClose} />
             </Box>
@@ -141,9 +205,10 @@ const App = () => {
           {/* Content area */}
           <Box 
             flex="1" 
-            ml={{ base: 0, md: isOpen ? "280px" : 0 }} 
+            ml={{ base: 0, md: isOpen ? "0" : 0 }} 
             transition="margin-left 0.3s"
             overflow="hidden"
+            id="editor-container"
           >
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
@@ -168,14 +233,14 @@ const App = () => {
                           w="full" 
                           h="280px" 
                           minH="200px"
-                          maxH="40vh"
+                          maxH={{ base: "50vh", md: "40vh" }}
                           borderBottom="1px" 
                           borderColor={borderColor}
                           bg={useColorModeValue('gray.50', 'gray.800')}
                         >
-                          <Flex h="full" overflow="hidden">
+                          <Flex h="full" overflow="hidden" direction={{ base: "column", md: "row" }}>
                             {showEditHistory && (
-                              <Box flex="1" p="2">
+                              <Box flex="1" p="2" minW={{ base: "full", md: "300px" }}>
                                 <EditHistory docId={currentDoc?.id} />
                               </Box>
                             )}
@@ -184,8 +249,10 @@ const App = () => {
                               <Box 
                                 flex="1" 
                                 p="2" 
-                                borderLeft={showEditHistory ? "1px" : "0"} 
+                                borderLeft={{ base: "none", md: showEditHistory ? "1px" : "0" }}
+                                borderTop={{ base: showEditHistory ? "1px" : "0", md: "none" }}
                                 borderColor={borderColor}
+                                minW={{ base: "full", md: "300px" }}
                               >
                                 <CollaborationMap docId={currentDoc?.id} />
                               </Box>
@@ -195,8 +262,10 @@ const App = () => {
                               <Box 
                                 flex="1" 
                                 p="2" 
-                                borderLeft={(showEditHistory || showCollaborationMap) ? "1px" : "0"} 
+                                borderLeft={{ base: "none", md: (showEditHistory || showCollaborationMap) ? "1px" : "0" }}
+                                borderTop={{ base: (showEditHistory || showCollaborationMap) ? "1px" : "0", md: "none" }}
                                 borderColor={borderColor}
+                                minW={{ base: "full", md: "300px" }}
                               >
                                 <AnalyticsPanel docId={currentDoc?.id} />
                               </Box>
@@ -207,30 +276,56 @@ const App = () => {
                     )}
                     
                     {/* Editor and preview */}
-                    <Flex flex="1" overflow="hidden">
+                    <Flex 
+                      flex="1" 
+                      overflow="hidden" 
+                      position="relative"
+                    >
                       <Box 
-                        flex="1" 
+                        w={showPreview ? `${100 - previewSize}%` : "100%"} 
                         h="full" 
                         overflow="hidden"
-                        transition="flex 0.3s ease"
+                        transition="width 0.3s ease"
                       >
                         <Suspense fallback={<LoadingFallback />}>
                           <Editor docId={currentDoc?.id} />
                         </Suspense>
                       </Box>
                       
+                      {/* Resize handle */}
                       {showPreview && (
-                        <Fade in={showPreview}>
-                          <Box 
-                            w={isLargerThan1280 ? "50%" : "40%"} 
-                            h="full" 
-                            overflow="hidden"
-                          >
-                            <Suspense fallback={<LoadingFallback />}>
-                              <MarkdownPreview content={text} />
-                            </Suspense>
-                          </Box>
-                        </Fade>
+                        <Box 
+                          w="5px" 
+                          h="full" 
+                          bg={borderColor} 
+                          cursor="col-resize"
+                          onMouseDown={() => {
+                            document.addEventListener('mousemove', handleResize);
+                            document.addEventListener('mouseup', () => {
+                              document.removeEventListener('mousemove', handleResize);
+                            }, { once: true });
+                          }}
+                          _hover={{ bg: 'blue.400' }}
+                          display={{ base: "none", md: "block" }}
+                        />
+                      )}
+                      
+                      {showPreview && (
+                        <Box 
+                          w={{ base: "100%", md: `${previewSize}%` }} 
+                          h="full" 
+                          overflow="hidden"
+                          position={{ base: showPreview ? "absolute" : "static", md: "static" }}
+                          top="0"
+                          right="0"
+                          transition="width 0.3s ease"
+                          zIndex={{ base: 10, md: 1 }}
+                          display={showPreview ? "block" : "none"}
+                        >
+                          <Suspense fallback={<LoadingFallback />}>
+                            <MarkdownPreview content={text} />
+                          </Suspense>
+                        </Box>
                       )}
                     </Flex>
                   </Flex>

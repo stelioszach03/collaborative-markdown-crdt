@@ -60,7 +60,6 @@ import {
   FaCheck
 } from 'react-icons/fa';
 import { TbSeparatorHorizontal, TbTextWrap } from 'react-icons/tb';
-import { IoMdAttach } from 'react-icons/io';
 import { BiCodeBlock } from 'react-icons/bi';
 
 const EditorToolbar = ({ 

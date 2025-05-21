@@ -1,25 +1,49 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
-  Box, Flex, useColorModeValue, Text, useToast, Tooltip, 
-  IconButton, HStack, Badge, useDisclosure
+  Box, 
+  Flex, 
+  useColorModeValue, 
+  Text, 
+  useToast, 
+  Tooltip, 
+  IconButton, 
+  HStack, 
+  Badge, 
+  useDisclosure, 
+  Spinner, 
+  Center,
+  Alert,
+  AlertIcon,
+  CloseButton,
+  Collapse,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuDivider,
+  Button
 } from '@chakra-ui/react';
+import { ChevronDownIcon, InfoIcon } from '@chakra-ui/icons';
 import { useCRDT } from '../../hooks/useCRDT';
 import { useDocument } from '../../context/DocumentContext';
 import { indexToPosition, positionToIndex, getCursorCoordinates } from '../../utils/crdt';
 import EditorToolbar from './EditorToolbar';
 import UserCursor from './UserCursor';
 import { insertMarkdown } from '../../utils/markdown';
-import { FaEye } from 'react-icons/fa';
-import { motion } from 'framer-motion';
+import { FaEye, FaRegSave, FaCheck, FaHistory, FaUndo } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Editor = ({ docId }) => {
+  // References
   const editorRef = useRef(null);
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
+  
+  // Document context
   const { text, connectionStatus, activeUsers } = useDocument();
   const toast = useToast();
   
-  // CRDT integration - με το userColor να περνιέται από το DocumentContext
+  // CRDT integration
   const { 
     ytext,
     connected,
@@ -40,6 +64,8 @@ const Editor = ({ docId }) => {
   const [showOthersCursors, setShowOthersCursors] = useState(true);
   const [activeLine, setActiveLine] = useState(0);
   const [lastEditTime, setLastEditTime] = useState(Date.now());
+  const [loading, setLoading] = useState(true);
+  const { isOpen: isInfoOpen, onToggle: toggleInfo, onClose: closeInfo } = useDisclosure();
   
   // Colors
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -49,7 +75,29 @@ const Editor = ({ docId }) => {
   const lineNumberBg = useColorModeValue('gray.50', 'gray.900');
   const lineHighlightColor = useColorModeValue('blue.50', 'blue.900');
   const activeLineBg = useColorModeValue('blue.50', 'blue.800');
+  const accentColor = useColorModeValue('blue.500', 'blue.400');
   
+  // Show loading indicator
+  useEffect(() => {
+    if (ytext) {
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [ytext]);
+  
+  // Show info banner with delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isInfoOpen && !localStorage.getItem('infoSeen')) {
+        toggleInfo();
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [isInfoOpen, toggleInfo]);
+
   // Handle cursor movement and selection
   const handleCursorChange = useCallback(() => {
     if (!textareaRef.current) return;
@@ -139,7 +187,7 @@ const Editor = ({ docId }) => {
     handleCursorChange();
   }, [ytext, text, insertText, deleteText, handleCursorChange]);
 
-  // Format text
+  // Format text with markdown syntax
   const formatText = useCallback((syntax, options = {}) => {
     if (!ytext || !textareaRef.current) return;
     
@@ -237,10 +285,10 @@ const Editor = ({ docId }) => {
 
   // Focus the editor on mount
   useEffect(() => {
-    if (textareaRef.current) {
+    if (textareaRef.current && !loading) {
       textareaRef.current.focus();
     }
-  }, []);
+  }, [loading]);
 
   // Handle connection status changes
   useEffect(() => {
@@ -264,6 +312,12 @@ const Editor = ({ docId }) => {
       });
     }
   }, [connectionStatus, connected, toast]);
+
+  // Handle info banner close
+  const handleInfoClose = () => {
+    closeInfo();
+    localStorage.setItem('infoSeen', 'true');
+  };
 
   // Generate line numbers
   const lineNumbers = text.split('\n').map((_, i) => i + 1);
@@ -294,8 +348,78 @@ const Editor = ({ docId }) => {
     });
   };
 
+  // Show loading spinner while connecting
+  if (loading) {
+    return (
+      <Box w="full" h="full" position="relative">
+        <Center h="full" flexDirection="column">
+          <Spinner size="xl" color="blue.500" thickness="4px" mb="4" />
+          <Text fontWeight="medium" color={useColorModeValue('gray.600', 'gray.300')}>
+            Loading document...
+          </Text>
+        </Center>
+      </Box>
+    );
+  }
+
   return (
     <Box w="full" h="full" position="relative">
+      {/* Info banner */}
+      <Collapse in={isInfoOpen} animateOpacity>
+        <Alert
+          status="info"
+          variant="subtle"
+          flexDirection={{ base: "column", sm: "row" }}
+          alignItems="center"
+          justifyContent="space-between"
+          py="3"
+          pl="4"
+          pr="3"
+          mb="0"
+          borderRadius="0"
+        >
+          <Flex alignItems="center">
+            <AlertIcon />
+            <Box ml="2">
+              <Text fontWeight="medium">Real-time collaboration active</Text>
+              <Text fontSize="sm">
+                Changes are automatically saved and visible to all collaborators
+              </Text>
+            </Box>
+          </Flex>
+          <Flex>
+            <Menu>
+              <MenuButton
+                as={Button}
+                variant="ghost"
+                size="sm"
+                rightIcon={<ChevronDownIcon />}
+                _hover={{ bg: 'whiteAlpha.200' }}
+                mr="2"
+              >
+                Learn More
+              </MenuButton>
+              <MenuList>
+                <MenuItem icon={<FaEye />}>
+                  See others' cursors in real-time
+                </MenuItem>
+                <MenuItem icon={<FaRegSave />}>
+                  Changes auto-save instantly
+                </MenuItem>
+                <MenuItem icon={<FaHistory />}>
+                  View edit history and contributions
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem icon={<FaUndo />}>
+                  Press Ctrl+Z to undo changes
+                </MenuItem>
+              </MenuList>
+            </Menu>
+            <CloseButton onClick={handleInfoClose} />
+          </Flex>
+        </Alert>
+      </Collapse>
+      
       <EditorToolbar 
         formatText={formatText}
         selection={selection}
@@ -313,8 +437,9 @@ const Editor = ({ docId }) => {
       <Flex 
         position="relative" 
         width="full" 
-        height="calc(100% - 40px)" 
+        height={isInfoOpen ? "calc(100% - 40px - 66px)" : "calc(100% - 40px)"} 
         className="editor-container"
+        transition="height 0.2s ease-in-out"
       >
         {/* Status indicator */}
         <HStack
@@ -346,77 +471,85 @@ const Editor = ({ docId }) => {
             </Text>
           </Badge>
           
-          {connected && Object.keys(activeUsers).length > 0 && (
-            <Tooltip label="Active users">
-              <Badge
-                bg={useColorModeValue('gray.100', 'gray.700')}
-                color={textColor}
-                px="2"
-                py="1"
-                borderRadius="full"
-              >
-                <HStack spacing="1">
-                  <FaEye size={10} />
-                  <Text fontSize="xs">{Object.keys(activeUsers).length}</Text>
-                </HStack>
-              </Badge>
-            </Tooltip>
+          {connected && activeUsers && activeUsers.size > 0 && (
+            <Badge
+              bg={useColorModeValue('gray.100', 'gray.700')}
+              color={textColor}
+              px="2"
+              py="1"
+              borderRadius="full"
+            >
+              <HStack spacing="1">
+                <FaEye size={10} />
+                <Text fontSize="xs">{activeUsers.size}</Text>
+              </HStack>
+            </Badge>
           )}
         </HStack>
         
         {/* Editor */}
         <Flex h="full" w="full" position="relative">
           {/* Line numbers */}
-          {showLineNumbers && (
-            <Box 
-              ref={lineNumbersRef}
-              width="50px" 
-              h="full" 
-              overflowY="hidden" 
-              bg={lineNumberBg}
-              color={lineNumberColor}
-              fontFamily="mono"
-              fontSize="sm"
-              userSelect="none"
-              borderRight="1px"
-              borderColor={borderColor}
-              textAlign="right"
-              py="4"
-              pr="2"
-              position="relative"
-            >
-              {/* Active line highlight */}
-              <Box
-                position="absolute"
-                width="100%"
-                height="20px"
-                bg={activeLineBg}
-                opacity="0.5"
-                transform={`translateY(${activeLine * 20 + 16}px)`} 
-                transition="transform 0.1s ease"
-                zIndex="1"
-              />
-              
-              {lineNumbers.map((num) => (
+          <AnimatePresence initial={false}>
+            {showLineNumbers && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: "50px", opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ height: "100%", overflow: "hidden" }}
+              >
                 <Box 
-                  key={num} 
-                  px="2" 
-                  height="20px"
-                  className="line-number"
-                  _classList={{
-                    'current-line': {
-                      color: textColor,
-                      fontWeight: "bold"
-                    }
-                  }}
+                  ref={lineNumbersRef}
+                  width="50px" 
+                  h="full" 
+                  overflowY="hidden" 
+                  bg={lineNumberBg}
+                  color={lineNumberColor}
+                  fontFamily="mono"
+                  fontSize="sm"
+                  userSelect="none"
+                  borderRight="1px"
+                  borderColor={borderColor}
+                  textAlign="right"
+                  py="4"
+                  pr="2"
                   position="relative"
-                  zIndex="2"
                 >
-                  {num}
+                  {/* Active line highlight */}
+                  <Box
+                    position="absolute"
+                    width="100%"
+                    height="20px"
+                    bg={activeLineBg}
+                    opacity="0.5"
+                    transform={`translateY(${activeLine * 20 + 16}px)`} 
+                    transition="transform 0.1s ease"
+                    zIndex="1"
+                  />
+                  
+                  {lineNumbers.map((num) => (
+                    <Box 
+                      key={num} 
+                      px="2" 
+                      height="20px"
+                      className="line-number"
+                      _classList={{
+                        'current-line': {
+                          color: textColor,
+                          fontWeight: "bold"
+                        }
+                      }}
+                      position="relative"
+                      zIndex="2"
+                    >
+                      {num}
+                    </Box>
+                  ))}
                 </Box>
-              ))}
-            </Box>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           {/* Text editor */}
           <Box 
@@ -464,22 +597,20 @@ const Editor = ({ docId }) => {
                 '&::selection': {
                   backgroundColor: useColorModeValue('rgba(0, 115, 255, 0.2)', 'rgba(99, 179, 237, 0.3)'),
                 },
-                '&.show-invisibles': {
-                  '& .space:before': {
-                    content: '"\u00B7"',
-                    color: 'gray.400',
-                    opacity: 0.6
-                  },
-                  '& .tab:before': {
-                    content: '"\u2192"',
-                    color: 'gray.400',
-                    opacity: 0.6
-                  },
-                  '& .cr:before': {
-                    content: '"\u21B5"',
-                    color: 'gray.400',
-                    opacity: 0.6
-                  }
+                '&.show-invisibles .space:before': {
+                  content: '"\u00B7"',
+                  color: 'gray.400',
+                  opacity: 0.6
+                },
+                '&.show-invisibles .tab:before': {
+                  content: '"\u2192"',
+                  color: 'gray.400',
+                  opacity: 0.6
+                },
+                '&.show-invisibles .cr:before': {
+                  content: '"\u21B5"',
+                  color: 'gray.400',
+                  opacity: 0.6
                 }
               }}
             />
@@ -503,12 +634,12 @@ const Editor = ({ docId }) => {
               position="absolute"
               width="2px"
               height="20px"
-              backgroundColor={useColorModeValue('blue.500', 'blue.300')}
+              backgroundColor={accentColor}
               top={cursorCoordinates.top}
               left={cursorCoordinates.left}
               zIndex="2"
               opacity="0.8"
-              className="cursor-blink"
+              className="animate-cursor-blink"
               display={isEditing ? 'none' : 'block'}
               pointerEvents="none"
             />
