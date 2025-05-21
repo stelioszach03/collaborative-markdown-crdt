@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
 import { useDocument } from '../context/DocumentContext';
 import { debounce } from '../utils/crdt';
 
@@ -10,6 +11,7 @@ export function useCRDT(docId) {
     awareness, 
     userId, 
     username, 
+    userColor, // Παίρνουμε το userColor από το context
     connectToDocument 
   } = useDocument();
   
@@ -19,31 +21,113 @@ export function useCRDT(docId) {
   const [undoManager, setUndoManager] = useState(null);
   const [lastEditTime, setLastEditTime] = useState(Date.now());
   const [editDuration, setEditDuration] = useState(0);
+  const providerRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
+  const maxReconnectAttempts = 5;
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   // Connect to document
   useEffect(() => {
     if (!docId) return;
     
-    const { ytext: newYtext, provider: newProvider } = connectToDocument(docId);
-    setYtext(newYtext);
+    const cleanup = () => {
+      if (providerRef.current) {
+        console.log(`Disconnecting from document: ${docId}`);
+        providerRef.current.disconnect();
+        providerRef.current = null;
+      }
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
     
-    // Setup connection status
-    const handleStatus = ({ status }) => {
-      setConnected(status === 'connected');
+    // Initial connection
+    const connect = () => {
+      cleanup(); // Clean up any existing connections
+      
+      try {
+        const { ytext: newYtext, provider: newProvider } = connectToDocument(docId);
+        if (!newYtext || !newProvider) {
+          throw new Error("Failed to connect to document");
+        }
+        
+        setYtext(newYtext);
+        providerRef.current = newProvider;
+        
+        // Setup connection status
+        const handleStatus = ({ status }) => {
+          console.log(`WebSocket status: ${status}`);
+          setConnected(status === 'connected');
+          
+          if (status === 'connected') {
+            setReconnectAttempts(0); // Reset reconnect attempts on successful connection
+          }
+        };
+        
+        newProvider.on('status', handleStatus);
+        setConnected(newProvider.wsconnected);
+        
+        // Create undo manager
+        const newUndoManager = new Y.UndoManager(newYtext);
+        setUndoManager(newUndoManager);
+        
+        // Setup awareness
+        if (newProvider.awareness) {
+          setAwareness(newProvider.awareness);
+        }
+        
+        // Set initial awareness state for this user
+        if (newProvider.awareness) {
+          newProvider.awareness.setLocalState({
+            userId,
+            username,
+            color: userColor, // Χρησιμοποιούμε το userColor από το context
+            cursor: null,
+            selection: null,
+            lastUpdate: Date.now()
+          });
+        }
+        
+        // Handle connection errors
+        newProvider.on('connection-error', (err) => {
+          console.error('WebSocket connection error:', err);
+          
+          // Try to reconnect with increasing delay
+          if (reconnectAttempts < maxReconnectAttempts) {
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+            
+            reconnectTimerRef.current = setTimeout(() => {
+              setReconnectAttempts(prev => prev + 1);
+              connect();
+            }, delay);
+          }
+        });
+        
+        return newProvider;
+      } catch (err) {
+        console.error('Error in WebSocket connection:', err);
+        return null;
+      }
     };
-
-    newProvider.on('status', handleStatus);
-    setConnected(newProvider.wsconnected);
-
-    // Create undo manager
-    const newUndoManager = new Y.UndoManager(newYtext);
-    setUndoManager(newUndoManager);
-
+    
+    const newProvider = connect();
+    
     return () => {
-      newProvider.off('status', handleStatus);
-      newUndoManager.destroy();
+      cleanup();
+      
+      if (newProvider) {
+        newProvider.off('status');
+        newProvider.off('connection-error');
+      }
+      
+      if (undoManager) {
+        undoManager.destroy();
+      }
     };
-  }, [docId, connectToDocument]);
+  }, [docId, connectToDocument, userId, username, userColor, reconnectAttempts]);
 
   // Track awareness updates
   useEffect(() => {
@@ -88,6 +172,7 @@ export function useCRDT(docId) {
         ...current,
         cursor: position,
         selection,
+        lastUpdate: Date.now()
       });
     }
   }, [awareness]);
@@ -113,7 +198,8 @@ export function useCRDT(docId) {
       username,
       changeSize: text.length,
       duration: Math.min(timeSinceLastEdit / 1000, 300), // Cap at 5 minutes
-      timestamp: now
+      timestamp: now,
+      lastUpdate: now
     };
     
     ytext.insert(index, text, origin);
@@ -134,7 +220,8 @@ export function useCRDT(docId) {
       username,
       changeSize: -length,
       duration: Math.min(timeSinceLastEdit / 1000, 300), // Cap at 5 minutes
-      timestamp: now
+      timestamp: now,
+      lastUpdate: now
     };
     
     ytext.delete(index, length, origin);
@@ -148,7 +235,8 @@ export function useCRDT(docId) {
       userId,
       username,
       isRevision: true,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      lastUpdate: Date.now()
     };
     
     undoManager.undo(origin);
@@ -161,7 +249,8 @@ export function useCRDT(docId) {
       userId,
       username,
       isRevision: true,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      lastUpdate: Date.now()
     };
     
     undoManager.redo(origin);

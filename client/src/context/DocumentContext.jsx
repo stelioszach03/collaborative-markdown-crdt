@@ -50,6 +50,11 @@ export const DocumentProvider = ({ children }) => {
   const [activeUsers, setActiveUsers] = useState(new Map());
   const toast = useToast();
 
+  // Μεταβλητές για επανασύνδεση
+  const reconnectTimerRef = useRef(null);
+  const maxReconnectAttempts = 5;
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+
   // Αρχικοποίηση χρήστη
   useEffect(() => {
     localStorage.setItem('userId', userId);
@@ -94,6 +99,11 @@ export const DocumentProvider = ({ children }) => {
         providerRef.current.disconnect();
         providerRef.current = null;
       }
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -110,7 +120,8 @@ export const DocumentProvider = ({ children }) => {
             color: state.color || '#cccccc',
             cursor: state.cursor,
             selection: state.selection,
-            clientId
+            clientId,
+            lastUpdate: state.lastUpdate || Date.now()
           });
         }
       });
@@ -124,6 +135,15 @@ export const DocumentProvider = ({ children }) => {
       awareness.off('change', updateActiveUsers);
     };
   }, [awareness]);
+
+  // Βελτιωμένη συνάρτηση για τη δημιουργία του WebSocket URL
+  const getWebSocketUrl = useCallback(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    
+    // Διασφαλίζουμε ότι χρησιμοποιούμε τη σωστή διαδρομή για τις συνδέσεις WebSocket
+    return `${protocol}//${host}/ws`;
+  }, []);
 
   // Σύνδεση σε έγγραφο
   const connectToDocument = useCallback((docId, docName = 'Untitled Document') => {
@@ -141,6 +161,12 @@ export const DocumentProvider = ({ children }) => {
       console.log(`Disconnecting from previous document before connecting to: ${docId}`);
       providerRef.current.disconnect();
       providerRef.current = null;
+    }
+    
+    // Ακύρωση τυχόν χρονομέτρων επανασύνδεσης
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
     }
 
     try {
@@ -169,6 +195,9 @@ export const DocumentProvider = ({ children }) => {
         setConnectionStatus(status);
         
         if (status === 'connected') {
+          // Επαναφορά προσπαθειών επανασύνδεσης μετά από επιτυχή σύνδεση
+          setReconnectAttempts(0);
+          
           toast({
             title: 'Connected',
             description: 'Now connected to document',
@@ -193,13 +222,26 @@ export const DocumentProvider = ({ children }) => {
       newProvider.on('connection-error', (error) => {
         console.error('WebSocket connection error:', error);
         setError(`Connection error: ${error.message || 'Unknown error'}`);
-        toast({
-          title: 'Connection Error',
-          description: `Error connecting to document: ${error.message || 'Unknown error'}`,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
+        
+        // Προσπάθεια επανασύνδεσης με αυξανόμενη καθυστέρηση
+        if (reconnectAttempts < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+          console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+          
+          reconnectTimerRef.current = setTimeout(() => {
+            setReconnectAttempts(prev => prev + 1);
+            // Προσπάθεια επανασύνδεσης με το ίδιο docId και docName
+            connectToDocument(docId, docName);
+          }, delay);
+        } else {
+          toast({
+            title: 'Connection Error',
+            description: `Failed to connect to document after ${maxReconnectAttempts} attempts. Please try again later.`,
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       });
 
       // Ρύθμιση του awareness
@@ -209,6 +251,7 @@ export const DocumentProvider = ({ children }) => {
         color: userColor,
         cursor: null,
         selection: null,
+        lastUpdate: Date.now()
       });
 
       setAwareness(newProvider.awareness);
@@ -235,14 +278,7 @@ export const DocumentProvider = ({ children }) => {
       });
       return { ytext: null, provider: null };
     }
-  }, [currentDoc, toast, userId, username, userColor]);
-
-  // Δημιουργία WebSocket URL
-  const getWebSocketUrl = () => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    return `${protocol}//${host}/ws`;
-  };
+  }, [currentDoc, toast, userId, username, userColor, getWebSocketUrl, reconnectAttempts]);
 
   // Δημιουργία νέου εγγράφου
   const createDocument = useCallback(async (name = 'Untitled Document') => {
@@ -415,6 +451,23 @@ export const DocumentProvider = ({ children }) => {
     });
   }, [awareness, toast]);
 
+  // Ανανέωση της σύνδεσης
+  const refreshConnection = useCallback(() => {
+    if (currentDoc) {
+      setReconnectAttempts(0);
+      connectToDocument(currentDoc.id, currentDoc.name);
+      
+      toast({
+        title: 'Connection Refreshed',
+        description: 'Attempting to reconnect to the document',
+        status: 'info',
+        duration: 2000,
+        isClosable: true,
+        position: 'bottom-right'
+      });
+    }
+  }, [currentDoc, connectToDocument, toast]);
+
   // Παρέχουμε τις λειτουργίες και τα δεδομένα στα παιδιά
   return (
     <DocumentContext.Provider value={{
@@ -437,6 +490,7 @@ export const DocumentProvider = ({ children }) => {
       updateDocumentName,
       deleteDocument,
       updateUsername,
+      refreshConnection,
     }}>
       {children}
     </DocumentContext.Provider>

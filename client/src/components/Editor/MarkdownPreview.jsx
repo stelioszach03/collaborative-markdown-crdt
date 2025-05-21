@@ -13,7 +13,9 @@ import {
   Tooltip,
   Heading,
   Divider,
-  Badge
+  Badge,
+  HStack,
+  VStack
 } from '@chakra-ui/react';
 import { RepeatIcon, ExternalLinkIcon } from '@chakra-ui/icons';
 import { 

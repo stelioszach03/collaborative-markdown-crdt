@@ -19,7 +19,7 @@ const Editor = ({ docId }) => {
   const { text, connectionStatus, activeUsers } = useDocument();
   const toast = useToast();
   
-  // CRDT integration
+  // CRDT integration - με το userColor να περνιέται από το DocumentContext
   const { 
     ytext,
     connected,
