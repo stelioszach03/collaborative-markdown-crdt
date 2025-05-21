@@ -1,168 +1,105 @@
+import * as Y from 'yjs';
+
 /**
- * Utility functions for CRDT operations
+ * Create a new Yjs document
+ * @returns {Y.Doc} A new Yjs document
  */
+export const createYDoc = () => {
+  return new Y.Doc();
+};
 
-// Debounce function for rate-limiting operations
-export function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
+/**
+ * Get a Y.Text instance from a Y.Doc
+ * @param {Y.Doc} ydoc - The Yjs document
+ * @param {string} name - The name of the text (default: 'content')
+ * @returns {Y.Text} The Y.Text instance
+ */
+export const getYText = (ydoc, name = 'content') => {
+  return ydoc.getText(name);
+};
+
+/**
+ * Apply an update to a Y.Doc
+ * @param {Y.Doc} ydoc - The Yjs document
+ * @param {Uint8Array} update - The update to apply
+ */
+export const applyUpdate = (ydoc, update) => {
+  Y.applyUpdate(ydoc, update);
+};
+
+/**
+ * Encode a Y.Doc state as an update
+ * @param {Y.Doc} ydoc - The Yjs document
+ * @returns {Uint8Array} The encoded update
+ */
+export const encodeStateAsUpdate = (ydoc) => {
+  return Y.encodeStateAsUpdate(ydoc);
+};
+
+/**
+ * Create a UndoManager for a Y.Text
+ * @param {Y.Text} ytext - The Y.Text instance
+ * @param {Object} options - Options for the UndoManager
+ * @returns {Y.UndoManager} The UndoManager
+ */
+export const createUndoManager = (ytext, options = {}) => {
+  return new Y.UndoManager(ytext, options);
+};
+
+/**
+ * Merge multiple updates into a single update
+ * @param {Array<Uint8Array>} updates - The updates to merge
+ * @returns {Uint8Array} The merged update
+ */
+export const mergeUpdates = (updates) => {
+  return Y.mergeUpdates(updates);
+};
+
+/**
+ * Convert a Yjs delta to plain text
+ * @param {Array} delta - The Yjs delta
+ * @returns {string} The plain text
+ */
+export const deltaToPlainText = (delta) => {
+  let text = '';
+  delta.forEach(op => {
+    if (op.insert) {
+      text += op.insert;
+    }
+  });
+  return text;
+};
+
+/**
+ * Extract statistics from a text
+ * @param {string} text - The text to analyze
+ * @returns {Object} The statistics
+ */
+export const extractDocStats = (text) => {
+  if (!text) {
+    return {
+      chars: 0,
+      words: 0,
+      lines: 0,
+      headings: 0,
+      lists: 0,
+      codeBlocks: 0
     };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-// Calculate position in the document from an index
-export function indexToPosition(text, index) {
-  if (!text || index === 0) {
-    return { line: 0, ch: 0 };
   }
-
-  const lines = text.slice(0, index).split('\n');
-  return {
-    line: lines.length - 1,
-    ch: lines[lines.length - 1].length,
-  };
-}
-
-// Calculate index from line and column position
-export function positionToIndex(text, position) {
-  if (!text || (position.line === 0 && position.ch === 0)) {
-    return 0;
-  }
-
+  
   const lines = text.split('\n');
-  let index = 0;
-  
-  for (let i = 0; i < position.line; i++) {
-    index += lines[i].length + 1; // +1 for the newline character
-  }
-  
-  return index + Math.min(position.ch, lines[position.line]?.length || 0);
-}
-
-// Get a relative position for displaying a cursor
-export function getCursorCoordinates(element, position) {
-  if (!element) return { top: 0, left: 0 };
-  
-  const lineHeight = 20; // Default line height in pixels
-  const charWidth = 8; // Average character width in pixels
-  
-  // Calculate top position based on line number
-  const top = position.line * lineHeight + 16; // 16px padding
-  
-  // Calculate left position based on character position
-  const left = position.ch * charWidth + (element.offsetLeft || 0);
-  
-  return { top, left };
-}
-
-// Convert awareness states to a format suitable for visualization
-export function awarenessStatesToArray(awarenessStates) {
-  const result = [];
-  
-  awarenessStates.forEach((state, clientId) => {
-    if (state.userId) {
-      result.push({
-        clientId,
-        userId: state.userId,
-        username: state.username || 'Anonymous',
-        color: state.color || '#cccccc',
-        cursor: state.cursor,
-        selection: state.selection,
-      });
-    }
-  });
-  
-  return result;
-}
-
-// Extract statistics from the document update history
-export function extractHistoryStats(updates) {
-  if (!updates || updates.length === 0) {
-    return { 
-      totalEdits: 0,
-      editsByUser: {},
-      editsOverTime: [],
-      avgEditSize: 0
-    };
-  }
-  
-  const result = {
-    totalEdits: updates.length,
-    editsByUser: {},
-    editsOverTime: [],
-    avgEditSize: 0,
-  };
-  
-  // Group by hour
-  const hourBuckets = {};
-  let totalChangeSize = 0;
-  
-  updates.forEach(update => {
-    // Count edits by user
-    if (!result.editsByUser[update.userId]) {
-      result.editsByUser[update.userId] = 0;
-    }
-    result.editsByUser[update.userId]++;
-    
-    // Track changes over time
-    const date = new Date(update.timestamp);
-    const hourKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
-    
-    if (!hourBuckets[hourKey]) {
-      hourBuckets[hourKey] = { 
-        time: date.getTime(), 
-        count: 0 
-      };
-    }
-    
-    hourBuckets[hourKey].count++;
-    
-    // Calculate change size
-    totalChangeSize += update.changeSize || 0;
-  });
-  
-  // Convert hour buckets to array
-  result.editsOverTime = Object.values(hourBuckets).sort((a, b) => a.time - b.time);
-  
-  // Calculate average edit size
-  result.avgEditSize = totalChangeSize / updates.length;
-  
-  return result;
-}
-
-// Calculate diff between two texts
-export function calculateDiff(oldText, newText) {
-  if (oldText === newText) return { insertions: [], deletions: [] };
-  
-  // Find common prefix
-  let i = 0;
-  while (i < oldText.length && i < newText.length && oldText[i] === newText[i]) {
-    i++;
-  }
-  const commonPrefixLength = i;
-  
-  // Find common suffix
-  let oldIndex = oldText.length - 1;
-  let newIndex = newText.length - 1;
-  while (oldIndex >= commonPrefixLength && newIndex >= commonPrefixLength && 
-         oldText[oldIndex] === newText[newIndex]) {
-    oldIndex--;
-    newIndex--;
-  }
-  
-  const commonSuffixLength = oldText.length - oldIndex - 1;
-  
-  // Calculate differences
-  const deletions = oldText.length - commonPrefixLength - commonSuffixLength;
-  const insertedText = newText.substring(commonPrefixLength, newText.length - commonSuffixLength);
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const headings = (text.match(/^#+\s+/gm) || []).length;
+  const lists = (text.match(/^[\s]*[-*+]\s+/gm) || []).length + 
+               (text.match(/^[\s]*\d+\.\s+/gm) || []).length;
+  const codeBlocks = (text.match(/```[\s\S]*?```/g) || []).length;
   
   return {
-    insertions: insertedText ? [{ index: commonPrefixLength, text: insertedText }] : [],
-    deletions: deletions > 0 ? [{ index: commonPrefixLength, length: deletions }] : []
+    chars: text.length,
+    words,
+    lines: lines.length,
+    headings,
+    lists,
+    codeBlocks
   };
-}
+};

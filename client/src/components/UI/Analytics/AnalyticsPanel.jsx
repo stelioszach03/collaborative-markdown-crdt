@@ -1,283 +1,171 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Box,
-  Text,
-  Heading,
-  Grid,
-  GridItem,
-  useColorModeValue,
-  Spinner,
-  Flex,
-  VStack,
+import { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Heading, 
+  Text, 
+  Tabs, 
+  TabList, 
+  TabPanels, 
+  Tab, 
+  TabPanel,
   Stat,
   StatLabel,
   StatNumber,
   StatHelpText,
   StatArrow,
-  Badge,
-  HStack,
-  Progress,
-  useToken,
-  Alert,
-  AlertIcon
+  SimpleGrid,
+  Spinner,
+  Center,
+  Flex,
+  Badge
 } from '@chakra-ui/react';
-import { 
-  FaEdit, 
-  FaUsers, 
-  FaClock, 
-  FaFileAlt, 
-  FaRegSave
-} from 'react-icons/fa';
-import { useDocument } from '../../../context/DocumentContext';
+import EditHistory from '../../Visualizations/EditHistory';
+import CollaborationMap from '../../Visualizations/CollaborationMap';
 
-const AnalyticsPanel = ({ docId }) => {
-  const [analyticsData, setAnalyticsData] = useState(null);
+const AnalyticsPanel = ({ documentId, stats }) => {
+  const [documentAnalytics, setDocumentAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { text } = useDocument();
-  
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const statBgColor = useColorModeValue('gray.50', 'gray.700');
-  const textColor = useColorModeValue('gray.800', 'gray.100');
-  const [blue500] = useToken('colors', ['blue.500']);
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
-    if (!docId) return;
-    
-    const fetchAnalyticsData = async () => {
-      setLoading(true);
-      setError(null);
-      
+    const fetchAnalytics = async () => {
       try {
-        const response = await fetch(`/api/documents/${docId}/analytics`);
+        setLoading(true);
+        const response = await fetch(`/api/documents/${documentId}/analytics`);
         
         if (!response.ok) {
-          throw new Error('Failed to fetch document analytics');
+          throw new Error('Failed to fetch analytics');
         }
         
         const data = await response.json();
-        setAnalyticsData(data);
+        setDocumentAnalytics(data);
+        setError(null);
       } catch (err) {
-        console.error('Error fetching document analytics:', err);
+        console.error('Error fetching analytics:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchAnalyticsData();
-    
-    // Set up interval to refresh data every 30 seconds
-    const intervalId = setInterval(fetchAnalyticsData, 30000);
-    
-    return () => clearInterval(intervalId);
-  }, [docId, text]);
+    if (documentId) {
+      fetchAnalytics();
+    }
+  }, [documentId]);
+
+  if (loading) {
+    return (
+      <Center minH="300px">
+        <Spinner size="xl" />
+      </Center>
+    );
+  }
 
   if (error) {
     return (
-      <Box
-        h="full"
-        bg={bgColor}
-        borderRadius="md"
-        overflow="hidden"
-        p="4"
-      >
-        <Alert status="error">
-          <AlertIcon />
-          {error}
-        </Alert>
+      <Box p={4} textAlign="center">
+        <Text color="red.500">Error loading analytics: {error}</Text>
       </Box>
     );
   }
 
   return (
-    <Box
-      h="full"
-      bg={bgColor}
-      borderRadius="md"
-      overflow="hidden"
-      className="analytics-panel"
-    >
-      <Flex justifyContent="space-between" alignItems="center" p="3">
-        <Heading size="sm">Document Analytics</Heading>
-        <Badge colorScheme="purple">Live</Badge>
-      </Flex>
+    <Box>
+      <Heading size="md" mb={4}>Document Analytics</Heading>
       
-      {loading || !analyticsData ? (
-        <Flex h="80%" justifyContent="center" alignItems="center">
-          <Spinner size="xl" color="purple.500" />
-        </Flex>
-      ) : (
-        <Box p="2" overflowY="auto" h="85%">
-          <Grid templateColumns={{ base: "repeat(1, 1fr)", md: "repeat(2, 1fr)" }} gap="4">
-            {/* Total Edits */}
-            <GridItem>
-              <Stat
-                p="3"
-                borderRadius="md"
-                bg={statBgColor}
-                borderLeft="4px"
-                borderColor="blue.500"
-              >
-                <Flex align="center">
-                  <Box color="blue.500" mr="3">
-                    <FaEdit size="20px" />
-                  </Box>
-                  <Box>
-                    <StatLabel>Total Edits</StatLabel>
-                    <StatNumber>{analyticsData.totalEdits}</StatNumber>
-                    <StatHelpText>
-                      {analyticsData.editsTrend !== 0 && (
-                        <StatArrow type={analyticsData.editsTrend > 0 ? "increase" : "decrease"} />
-                      )}
-                      {Math.abs(analyticsData.editsTrend)}% from last session
-                    </StatHelpText>
-                  </Box>
-                </Flex>
+      <Tabs isFitted variant="enclosed" onChange={setActiveTab}>
+        <TabList mb={4}>
+          <Tab>Overview</Tab>
+          <Tab>History</Tab>
+          <Tab>Collaboration</Tab>
+        </TabList>
+        
+        <TabPanels>
+          {/* Overview Tab */}
+          <TabPanel>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
+              <Stat>
+                <StatLabel>Total Edits</StatLabel>
+                <StatNumber>{documentAnalytics?.totalEdits || 0}</StatNumber>
+                {documentAnalytics?.editsTrend !== 0 && (
+                  <StatHelpText>
+                    <StatArrow 
+                      type={documentAnalytics?.editsTrend > 0 ? 'increase' : 'decrease'} 
+                    />
+                    {Math.abs(documentAnalytics?.editsTrend || 0)}% from yesterday
+                  </StatHelpText>
+                )}
               </Stat>
-            </GridItem>
+              
+              <Stat>
+                <StatLabel>Collaborators</StatLabel>
+                <StatNumber>{documentAnalytics?.collaborators || 0}</StatNumber>
+              </Stat>
+              
+              <Stat>
+                <StatLabel>Time Spent</StatLabel>
+                <StatNumber>{documentAnalytics?.timeSpent || 0} min</StatNumber>
+              </Stat>
+              
+              <Stat>
+                <StatLabel>Revisions</StatLabel>
+                <StatNumber>{documentAnalytics?.revisions || 0}</StatNumber>
+              </Stat>
+            </SimpleGrid>
             
-            {/* Collaborators */}
-            <GridItem>
-              <Stat
-                p="3"
-                borderRadius="md"
-                bg={statBgColor}
-                borderLeft="4px"
-                borderColor="green.500"
-              >
-                <Flex align="center">
-                  <Box color="green.500" mr="3">
-                    <FaUsers size="20px" />
-                  </Box>
+            <Heading size="sm" mb={2}>Document Statistics</Heading>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <Stat>
+                <StatLabel>Characters</StatLabel>
+                <StatNumber>{stats?.chars || 0}</StatNumber>
+              </Stat>
+              
+              <Stat>
+                <StatLabel>Words</StatLabel>
+                <StatNumber>{stats?.words || 0}</StatNumber>
+              </Stat>
+              
+              <Stat>
+                <StatLabel>Lines</StatLabel>
+                <StatNumber>{stats?.lines || 0}</StatNumber>
+              </Stat>
+              
+              <Stat>
+                <Flex alignItems="center">
                   <Box>
-                    <StatLabel>Collaborators</StatLabel>
-                    <StatNumber>{analyticsData.collaborators}</StatNumber>
-                    <StatHelpText>
-                      {analyticsData.collaboratorsTrend > 0 ? (
-                        <>
-                          <StatArrow type="increase" />
-                          {analyticsData.collaboratorsTrend} new this week
-                        </>
-                      ) : (
-                        "No change this week"
-                      )}
-                    </StatHelpText>
+                    <StatLabel>Document Elements</StatLabel>
+                    <StatNumber>
+                      {(stats?.headings || 0) + (stats?.lists || 0) + (stats?.codeBlocks || 0)}
+                    </StatNumber>
                   </Box>
+                  <Flex ml={4} gap={2} flexWrap="wrap">
+                    <Badge colorScheme="purple">{stats?.headings || 0} headings</Badge>
+                    <Badge colorScheme="green">{stats?.lists || 0} lists</Badge>
+                    <Badge colorScheme="orange">{stats?.codeBlocks || 0} code blocks</Badge>
+                  </Flex>
                 </Flex>
               </Stat>
-            </GridItem>
+            </SimpleGrid>
             
-            {/* Time Spent */}
-            <GridItem>
-              <Stat
-                p="3"
-                borderRadius="md"
-                bg={statBgColor}
-                borderLeft="4px"
-                borderColor="orange.500"
-              >
-                <Flex align="center">
-                  <Box color="orange.500" mr="3">
-                    <FaClock size="20px" />
-                  </Box>
-                  <Box>
-                    <StatLabel>Time Spent</StatLabel>
-                    <StatNumber>{analyticsData.timeSpent} min</StatNumber>
-                    <StatHelpText>
-                      {analyticsData.timeSpentTrend !== 0 && (
-                        <StatArrow type={analyticsData.timeSpentTrend > 0 ? "increase" : "decrease"} />
-                      )}
-                      {Math.abs(analyticsData.timeSpentTrend)} min from last session
-                    </StatHelpText>
-                  </Box>
-                </Flex>
-              </Stat>
-            </GridItem>
-            
-            {/* Revisions */}
-            <GridItem>
-              <Stat
-                p="3"
-                borderRadius="md"
-                bg={statBgColor}
-                borderLeft="4px"
-                borderColor="purple.500"
-              >
-                <Flex align="center">
-                  <Box color="purple.500" mr="3">
-                    <FaFileAlt size="20px" />
-                  </Box>
-                  <Box>
-                    <StatLabel>Revisions</StatLabel>
-                    <StatNumber>{analyticsData.revisions}</StatNumber>
-                    <StatHelpText>
-                      {analyticsData.revisionsTrend !== 0 && (
-                        <StatArrow type={analyticsData.revisionsTrend > 0 ? "increase" : "decrease"} />
-                      )}
-                      {Math.abs(analyticsData.revisionsTrend)} from yesterday
-                    </StatHelpText>
-                  </Box>
-                </Flex>
-              </Stat>
-            </GridItem>
-          </Grid>
+            <Text fontSize="sm" color="gray.500" mt={4} textAlign="right">
+              Last updated: {new Date().toLocaleTimeString()}
+            </Text>
+          </TabPanel>
           
-          {/* Document Stats */}
-          <Box mt="4" p="3" borderRadius="md" bg={statBgColor}>
-            <Flex justify="space-between" align="center" mb="3">
-              <Heading size="xs">Document Stats</Heading>
-              <HStack>
-                <FaRegSave size="14px" />
-                <Text fontSize="xs">
-                  Last saved: {new Date(analyticsData.lastSaved).toLocaleTimeString()}
-                </Text>
-              </HStack>
-            </Flex>
-            
-            <VStack spacing="3" align="stretch">
-              {/* Word Count */}
-              <Box>
-                <Flex justify="space-between">
-                  <Text fontSize="sm">Words</Text>
-                  <Text fontSize="sm" fontWeight="bold">{analyticsData.wordCount}</Text>
-                </Flex>
-                <Progress value={Math.min(analyticsData.wordCount / 10, 100)} size="sm" colorScheme="blue" mt="1" />
-              </Box>
-              
-              {/* Character Count */}
-              <Box>
-                <Flex justify="space-between">
-                  <Text fontSize="sm">Characters</Text>
-                  <Text fontSize="sm" fontWeight="bold">{analyticsData.characterCount}</Text>
-                </Flex>
-                <Progress value={Math.min(analyticsData.characterCount / 50, 100)} size="sm" colorScheme="green" mt="1" />
-              </Box>
-              
-              {/* Headings */}
-              <Box>
-                <Flex justify="space-between">
-                  <Text fontSize="sm">Headings</Text>
-                  <Text fontSize="sm" fontWeight="bold">{analyticsData.headingCount}</Text>
-                </Flex>
-                <Progress value={Math.min(analyticsData.headingCount * 10, 100)} size="sm" colorScheme="orange" mt="1" />
-              </Box>
-              
-              {/* List Items */}
-              <Box>
-                <Flex justify="space-between">
-                  <Text fontSize="sm">List Items</Text>
-                  <Text fontSize="sm" fontWeight="bold">{analyticsData.listItemCount}</Text>
-                </Flex>
-                <Progress value={Math.min(analyticsData.listItemCount * 5, 100)} size="sm" colorScheme="purple" mt="1" />
-              </Box>
-            </VStack>
-          </Box>
-        </Box>
-      )}
+          {/* History Tab */}
+          <TabPanel>
+            <EditHistory documentId={documentId} />
+          </TabPanel>
+          
+          {/* Collaboration Tab */}
+          <TabPanel>
+            <CollaborationMap documentId={documentId} />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </Box>
   );
 };
 
-export default AnalyticsPanel; 
+export default AnalyticsPanel;

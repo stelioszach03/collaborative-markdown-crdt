@@ -1,391 +1,151 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box, 
-  Heading, 
-  Text, 
-  Button, 
-  VStack,
-  Flex, 
-  useColorModeValue,
-  Input, 
-  InputGroup, 
-  InputLeftElement, 
-  Divider, 
-  SimpleGrid, 
-  Card, 
-  CardBody, 
-  CardHeader, 
-  IconButton,
-  useToast,
-  HStack,
-  Container,
-  Icon
-} from '@chakra-ui/react';
-import { AddIcon, SearchIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { 
-  FaRegFileAlt, 
-  FaMarkdown, 
-  FaRegEdit, 
-  FaUserFriends,
-  FaRegClock,
-  FaCode,
-  FaBrain
-} from 'react-icons/fa';
-import { motion } from 'framer-motion';
+import { useEffect } from 'react';
+import { Box, Heading, Text, Button, VStack, HStack, SimpleGrid, Icon, useToast } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import Logo from './Logo';
+import { FaEdit, FaUsers, FaHistory, FaChartPie, FaMoon, FaBolt } from 'react-icons/fa';
+import { useDocuments } from '../../context/DocumentContext';
 
-/**
- * WelcomeScreen Component - Initial screen when no document is selected
- * 
- * @param {Object} props - Component properties
- * @param {Function} props.onCreateDocument - Function to create a new document
- */
-const WelcomeScreen = ({ onCreateDocument }) => {
-  const [documentName, setDocumentName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+const FeatureCard = ({ icon, title, description }) => (
+  <Box 
+    p={6} 
+    borderRadius="lg" 
+    borderWidth="1px" 
+    borderColor="gray.200" 
+    _dark={{ borderColor: "gray.700" }}
+    bg="white" 
+    _dark={{ bg: "gray.800" }}
+    boxShadow="sm"
+    transition="all 0.2s"
+    _hover={{ 
+      transform: "translateY(-2px)", 
+      boxShadow: "md" 
+    }}
+  >
+    <Icon as={icon} boxSize={10} color="primary.500" mb={4} />
+    <Heading size="md" mb={2}>{title}</Heading>
+    <Text color="gray.600" _dark={{ color: "gray.300" }}>{description}</Text>
+  </Box>
+);
+
+const WelcomeScreen = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  
-  // Colors
-  const bgColor = useColorModeValue('gray.50', 'gray.900');
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const textColor = useColorModeValue('gray.800', 'white');
-  const mutedColor = useColorModeValue('gray.500', 'gray.400');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const primaryColor = useColorModeValue('blue.500', 'blue.400');
+  const { createDocument, documents } = useDocuments();
 
-  // Animation effect after mounting
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Handle document creation
+  // Create a new document
   const handleCreateDocument = async () => {
-    if (isCreating) return;
-    
     try {
-      setIsCreating(true);
-      const name = documentName.trim() || 'Untitled Document';
-      const doc = await onCreateDocument(name);
-      
-      if (doc) {
-        toast({
-          title: "Document Created",
-          description: `"${name}" has been created successfully.`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-          position: "bottom-right"
-        });
-        navigate(`/documents/${doc.id}`);
+      const newDoc = await createDocument("Getting Started");
+      if (newDoc) {
+        navigate(`/documents/${newDoc.id}`);
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to create document. Please try again.",
-        status: "error",
+        title: 'Error creating document',
+        description: error.message,
+        status: 'error',
         duration: 5000,
         isClosable: true,
-        position: "bottom-right"
       });
-      console.error("Error creating document:", error);
-    } finally {
-      setIsCreating(false);
     }
   };
 
-  // Create from template
-  const createFromTemplate = (templateName) => {
-    if (isCreating) return;
-    
-    setIsCreating(true);
-    onCreateDocument(templateName)
-      .then(doc => {
-        if (doc) {
-          toast({
-            title: "Document Created",
-            description: `"${templateName}" has been created successfully from template.`,
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-            position: "bottom-right"
-          });
-          navigate(`/documents/${doc.id}`);
-        }
-      })
-      .catch(error => {
-        toast({
-          title: "Error",
-          description: "Failed to create document. Please try again.",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right"
-        });
-        console.error("Error creating document from template:", error);
-      })
-      .finally(() => {
-        setIsCreating(false);
+  // Navigate to first document if exists
+  const handleOpenExisting = () => {
+    if (documents?.length > 0) {
+      navigate(`/documents/${documents[0].id}`);
+    } else {
+      toast({
+        title: 'No documents available',
+        description: 'Create a new document to get started',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
       });
-  };
-
-  // Document templates
-  const templates = [
-    {
-      title: 'Blank Document',
-      icon: FaRegFileAlt,
-      description: 'Start with a clean slate',
-      color: 'blue.500'
-    },
-    {
-      title: 'Meeting Notes',
-      icon: FaRegEdit,
-      description: 'Template for meeting notes',
-      color: 'green.500'
-    },
-    {
-      title: 'Project README',
-      icon: FaMarkdown,
-      description: 'Standard README format',
-      color: 'purple.500'
-    },
-    {
-      title: 'Team Wiki',
-      icon: FaUserFriends,
-      description: 'Knowledge base template',
-      color: 'orange.500'
-    }
-  ];
-
-  // Application features
-  const features = [
-    {
-      icon: FaMarkdown,
-      title: "Markdown Support",
-      description: "Full support for GitHub Flavored Markdown for rich document formatting"
-    },
-    {
-      icon: FaUserFriends,
-      title: "Real-time Collaboration",
-      description: "See others typing in real-time with cursors and selections"
-    },
-    {
-      icon: FaRegClock,
-      title: "Version History",
-      description: "Track changes and see who contributed what to the document"
-    },
-    {
-      icon: FaCode,
-      title: "Code Highlighting",
-      description: "Syntax highlighting for code blocks in various languages"
-    },
-    {
-      icon: FaBrain,
-      title: "Smart Features",
-      description: "Analytics, statistics, and insights about your documents"
-    }
-  ];
-
-  // Animation variants for staggered entrance
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: 0.1
-      }
-    }
-  };
-  
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { duration: 0.5 }
     }
   };
 
   return (
-    <Box 
-      height="100%" 
-      p={{ base: 4, md: 8 }} 
-      bg={bgColor}
-      overflowY="auto"
-    >
-      <Container maxW="1200px" h="full">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+    <Box p={8} maxW="1200px" mx="auto">
+      <VStack spacing={10} align="center" textAlign="center" mb={16}>
+        <Heading 
+          as="h1" 
+          size="2xl" 
+          fontWeight="bold" 
+          lineHeight="1.2"
+          bgGradient="linear(to-r, primary.400, primary.600)"
+          bgClip="text"
         >
-          {/* Welcome header */}
-          <motion.div variants={itemVariants}>
-            <Flex justifyContent="center" mb="8">
-              <VStack>
-                <Box mb="4">
-                  <Logo height="60px" />
-                </Box>
-                <Heading as="h1" size="xl" color={textColor} textAlign="center">
-                  Welcome to CollabMD
-                </Heading>
-                <Text color={mutedColor} fontSize="lg" textAlign="center">
-                  Create, edit, and collaborate on Markdown documents in real-time
-                </Text>
-              </VStack>
-            </Flex>
-          </motion.div>
+          Collaborative Markdown Editor
+        </Heading>
+        
+        <Text fontSize="xl" maxW="800px" color="gray.600" _dark={{ color: "gray.300" }}>
+          Create, edit, and collaborate on Markdown documents in real-time.
+          See changes as they happen and work together with your team.
+        </Text>
+        
+        <HStack spacing={6}>
+          <Button 
+            colorScheme="blue" 
+            size="lg" 
+            height="56px" 
+            px="32px"
+            leftIcon={<FaEdit />}
+            onClick={handleCreateDocument}
+          >
+            Create New Document
+          </Button>
           
-          {/* Create document input */}
-          <motion.div variants={itemVariants}>
-            <Card
-              shadow="md"
-              borderRadius="lg"
-              bg={cardBg}
-              p="6"
-              mb="8"
-              border="1px"
-              borderColor={borderColor}
-              overflow="hidden"
-            >
-              <Flex 
-                direction={{ base: 'column', md: 'row' }}
-                align="center"
-                justify="space-between"
-              >
-                <Box mb={{ base: 4, md: 0 }} mr={{ md: 4 }} flex="1">
-                  <Heading size="md">Start a new document</Heading>
-                  <Text color={mutedColor}>Create a document and share it with others</Text>
-                </Box>
-                <Flex width={{ base: 'full', md: 'auto' }}>
-                  <InputGroup size="md">
-                    <InputLeftElement>
-                      <FaRegFileAlt color={primaryColor} />
-                    </InputLeftElement>
-                    <Input
-                      placeholder="Document name"
-                      value={documentName}
-                      onChange={(e) => setDocumentName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCreateDocument();
-                      }}
-                      mr="2"
-                      borderColor={borderColor}
-                    />
-                  </InputGroup>
-                  <Button
-                    colorScheme="blue"
-                    leftIcon={<AddIcon />}
-                    onClick={handleCreateDocument}
-                    isLoading={isCreating}
-                    loadingText="Creating..."
-                  >
-                    Create
-                  </Button>
-                </Flex>
-              </Flex>
-            </Card>
-          </motion.div>
-          
-          {/* Templates */}
-          <motion.div variants={itemVariants}>
-            <Box mb="8">
-              <Heading as="h2" size="md" mb="4">
-                Start with a template
-              </Heading>
-              <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing="4" width="full">
-                {templates.map((template, index) => (
-                  <motion.div
-                    key={index}
-                    whileHover={{ y: -4, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
-                    whileTap={{ y: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Card 
-                      bg={cardBg} 
-                      shadow="md" 
-                      borderRadius="lg" 
-                      borderWidth="1px"
-                      borderColor={borderColor}
-                      overflow="hidden"
-                      cursor="pointer"
-                      height="full"
-                      onClick={() => createFromTemplate(template.title)}
-                      _hover={{ borderColor: template.color }}
-                    >
-                      <CardHeader pb="0">
-                        <Flex justifyContent="space-between" alignItems="center">
-                          <Icon as={template.icon} boxSize="6" color={template.color} />
-                          <IconButton
-                            icon={<ChevronRightIcon />}
-                            variant="ghost"
-                            colorScheme="blue"
-                            size="sm"
-                            aria-label="Use template"
-                          />
-                        </Flex>
-                      </CardHeader>
-                      <CardBody>
-                        <Heading size="sm" mb="2">{template.title}</Heading>
-                        <Text fontSize="sm" color={mutedColor}>{template.description}</Text>
-                      </CardBody>
-                    </Card>
-                  </motion.div>
-                ))}
-              </SimpleGrid>
-            </Box>
-          </motion.div>
-          
-          {/* Features section */}
-          <motion.div variants={itemVariants}>
-            <Box mb="8">
-              <Heading as="h2" size="md" mb="6" textAlign="center">
-                Key Features
-              </Heading>
-              <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="6">
-                {features.map((feature, index) => (
-                  <motion.div
-                    key={index}
-                    whileHover={{ y: -4 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Card 
-                      p="6" 
-                      bg={cardBg} 
-                      borderRadius="lg" 
-                      shadow="md"
-                      borderWidth="1px"
-                      borderColor={borderColor}
-                      height="full"
-                    >
-                      <VStack spacing="4" align="center" textAlign="center">
-                        <Icon as={feature.icon} boxSize="8" color="blue.500" />
-                        <Heading as="h3" size="md">{feature.title}</Heading>
-                        <Text fontSize="sm" color={mutedColor}>{feature.description}</Text>
-                      </VStack>
-                    </Card>
-                  </motion.div>
-                ))}
-              </SimpleGrid>
-            </Box>
-          </motion.div>
-          
-          {/* Footer */}
-          <motion.div variants={itemVariants}>
-            <Divider my="8" />
-            <Text fontSize="sm" color={mutedColor} textAlign="center">
-              &copy; {new Date().getFullYear()} CollabMD - Collaborative Markdown Editor
-            </Text>
-          </motion.div>
-        </motion.div>
-      </Container>
+          <Button 
+            variant="outline" 
+            colorScheme="blue" 
+            size="lg" 
+            height="56px" 
+            onClick={handleOpenExisting}
+          >
+            Open Existing Document
+          </Button>
+        </HStack>
+      </VStack>
+      
+      <Heading as="h2" size="lg" mb={8} textAlign="center">Key Features</Heading>
+      
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={8}>
+        <FeatureCard 
+          icon={FaEdit}
+          title="Markdown Editing"
+          description="Intuitive Markdown editor with real-time preview. Format your documents with headings, lists, code blocks, and more."
+        />
+        
+        <FeatureCard 
+          icon={FaUsers}
+          title="Real-time Collaboration"
+          description="Work together with your team in real-time. See cursor positions and changes as they happen."
+        />
+        
+        <FeatureCard 
+          icon={FaHistory}
+          title="Edit History"
+          description="Track changes over time with detailed edit history and visualizations of document modifications."
+        />
+        
+        <FeatureCard 
+          icon={FaChartPie}
+          title="Analytics Dashboard"
+          description="Get insights into your documents with analytics on word count, contributors, and edit frequency."
+        />
+        
+        <FeatureCard 
+          icon={FaMoon}
+          title="Dark Mode Support"
+          description="Comfortable editing in any lighting with full dark mode support and automatic detection."
+        />
+        
+        <FeatureCard 
+          icon={FaBolt}
+          title="CRDT Technology"
+          description="Powered by Conflict-free Replicated Data Types (CRDT) for seamless offline editing and conflict resolution."
+        />
+      </SimpleGrid>
     </Box>
   );
 };

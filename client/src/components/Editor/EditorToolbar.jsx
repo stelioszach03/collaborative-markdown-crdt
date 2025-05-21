@@ -1,478 +1,328 @@
-import React, { useState } from 'react';
-import {
+import { useState, useRef } from 'react';
+import { 
+  Flex, 
+  Button, 
+  IconButton, 
+  Tooltip, 
+  Input, 
+  HStack, 
   Box,
-  Flex,
-  IconButton,
-  Tooltip,
+  Badge, 
   Divider,
-  useColorModeValue,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Button,
-  ButtonGroup,
-  HStack,
+  useDisclosure,
   Popover,
   PopoverTrigger,
   PopoverContent,
-  PopoverHeader,
   PopoverBody,
-  PopoverArrow,
-  PopoverCloseButton,
-  Input,
-  InputGroup,
-  InputLeftAddon,
-  Text,
-  Badge
+  PopoverArrow 
 } from '@chakra-ui/react';
-import {
-  ChevronDownIcon,
-  AddIcon,
-  LinkIcon,
-  CheckIcon,
-  InfoIcon
-} from '@chakra-ui/icons';
 import {
   FaBold,
   FaItalic,
-  FaImage,
-  FaCode,
+  FaHeading,
   FaListUl,
   FaListOl,
-  FaQuoteRight,
-  FaUndo,
-  FaRedo,
-  FaHeading,
-  FaTable,
+  FaQuoteLeft,
+  FaCode,
+  FaLink,
+  FaImage,
+  FaSync,
   FaEye,
   FaEyeSlash,
-  FaUserFriends,
-  FaUserSlash,
-  FaRegFileCode,
-  FaRegFile,
-  FaStrikethrough,
-  FaAlignLeft,
-  FaAlignCenter,
-  FaAlignRight,
-  FaAlignJustify,
-  FaTasks,
-  FaCheck
+  FaChartLine,
+  FaUserFriends
 } from 'react-icons/fa';
-import { TbSeparatorHorizontal, TbTextWrap } from 'react-icons/tb';
-import { BiCodeBlock } from 'react-icons/bi';
+import { MdHorizontalRule } from 'react-icons/md';
+import UserPresence from '../UI/UserPresence';
 
 const EditorToolbar = ({ 
-  formatText, 
-  selection, 
-  undo, 
-  redo, 
-  connected,
-  showLineNumbers,
-  toggleLineNumbers,
-  showInvisibles,
-  toggleInvisibles,
-  showOthersCursors,
-  toggleOthersCursors
+  document, 
+  onTitleChange, 
+  isConnected,
+  onFormat,
+  showPreview,
+  togglePreview,
+  activeUsers = [],
+  showAnalytics,
+  toggleAnalytics
 }) => {
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const iconColor = useColorModeValue('gray.700', 'gray.300');
-  const activeBg = useColorModeValue('blue.50', 'blue.900');
-  const activeColor = useColorModeValue('blue.600', 'blue.200');
-  
-  // States for popover inputs
-  const [linkUrl, setLinkUrl] = useState('https://');
-  const [imageUrl, setImageUrl] = useState('https://');
-  const [imageAlt, setImageAlt] = useState('Image description');
-  const [codeLanguage, setCodeLanguage] = useState('javascript');
+  const [title, setTitle] = useState(document?.name || 'Untitled Document');
+  const [isEditing, setIsEditing] = useState(false);
+  const inputRef = useRef(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
-  // Format headings
-  const formatHeading = (level) => {
-    formatText('heading', { level });
+  // Handle title click to start editing
+  const handleTitleClick = () => {
+    setIsEditing(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
   };
 
-  // Insert link with URL
-  const insertLink = () => {
-    formatText('link', { url: linkUrl });
-    setLinkUrl('https://');
+  // Handle title input blur to save changes
+  const handleTitleBlur = () => {
+    setIsEditing(false);
+    onTitleChange(title);
   };
 
-  // Insert image with URL and alt text
-  const insertImage = () => {
-    formatText('image', { url: imageUrl, alt: imageAlt });
-    setImageUrl('https://');
-    setImageAlt('Image description');
-  };
-
-  // Insert code block with language
-  const insertCodeBlock = () => {
-    formatText('code-block', { language: codeLanguage });
-    setCodeLanguage('javascript');
+  // Handle title input key press
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      setIsEditing(false);
+      onTitleChange(title);
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setTitle(document?.name || 'Untitled Document');
+    }
   };
 
   return (
-    <Flex
-      width="full"
-      h="40px"
-      bg={bgColor}
-      borderBottom="1px"
-      borderColor={borderColor}
-      p="1"
-      alignItems="center"
-      overflowX="auto"
+    <Box
       className="editor-toolbar"
-      position="relative"
-      zIndex="10"
+      p={2}
+      borderBottom="1px solid"
+      borderColor="border.light"
+      _dark={{ borderColor: "border.dark" }}
+      bg="sidebar.light"
+      _dark={{ bg: "sidebar.dark" }}
     >
-      <Flex align="center" flex="1">
-        {/* Undo/Redo */}
-        <ButtonGroup size="sm" variant="ghost" mr="2">
-          <Tooltip label="Undo (Ctrl+Z)" openDelay={500}>
-            <IconButton
-              icon={<FaUndo size="14px" />}
-              aria-label="Undo"
-              onClick={undo}
-              color={iconColor}
+      <Flex justifyContent="space-between" alignItems="center">
+        {/* Document title */}
+        <Box>
+          {isEditing ? (
+            <Input
+              ref={inputRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={handleTitleBlur}
+              onKeyDown={handleKeyPress}
+              size="sm"
+              width="250px"
+              fontWeight="medium"
             />
-          </Tooltip>
+          ) : (
+            <Tooltip label="Click to edit">
+              <Button 
+                variant="ghost" 
+                onClick={handleTitleClick}
+                fontWeight="medium"
+                px={2}
+                h="32px"
+              >
+                {title}
+              </Button>
+            </Tooltip>
+          )}
           
-          <Tooltip label="Redo (Ctrl+Shift+Z)" openDelay={500}>
+          {/* Connection status */}
+          <Badge 
+            ml={2}
+            colorScheme={isConnected ? 'green' : 'red'}
+            variant="subtle"
+          >
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </Badge>
+        </Box>
+        
+        {/* Formatting tools */}
+        <HStack spacing={1} justifyContent="center" flex="1">
+          <Tooltip label="Bold (Ctrl+B)">
             <IconButton
-              icon={<FaRedo size="14px" />}
-              aria-label="Redo"
-              onClick={redo}
-              color={iconColor}
-            />
-          </Tooltip>
-        </ButtonGroup>
-        
-        <Divider orientation="vertical" h="20px" mx="2" />
-        
-        {/* Headings */}
-        <Menu closeOnSelect={true}>
-          <Tooltip label="Headings" openDelay={500}>
-            <MenuButton
-              as={Button}
+              aria-label="Bold"
+              icon={<FaBold />}
+              onClick={() => onFormat('bold')}
               size="sm"
               variant="ghost"
-              color={iconColor}
-              mx="1"
-              leftIcon={<FaHeading size="14px" />}
-              rightIcon={<ChevronDownIcon boxSize={3} />}
-            >
-              Heading
-            </MenuButton>
-          </Tooltip>
-          <MenuList zIndex={1001}>
-            <MenuItem onClick={() => formatHeading(1)} fontWeight="bold" fontSize="xl">Heading 1</MenuItem>
-            <MenuItem onClick={() => formatHeading(2)} fontWeight="bold" fontSize="lg">Heading 2</MenuItem>
-            <MenuItem onClick={() => formatHeading(3)} fontWeight="bold">Heading 3</MenuItem>
-            <MenuItem onClick={() => formatHeading(4)} fontWeight="semibold">Heading 4</MenuItem>
-            <MenuItem onClick={() => formatHeading(5)} fontSize="sm" fontWeight="semibold">Heading 5</MenuItem>
-            <MenuItem onClick={() => formatHeading(6)} fontSize="xs" fontWeight="semibold">Heading 6</MenuItem>
-          </MenuList>
-        </Menu>
-        
-        <Divider orientation="vertical" h="20px" mx="2" />
-        
-        {/* Text formatting */}
-        <ButtonGroup size="sm" variant="ghost" isAttached>
-          <Tooltip label="Bold (Ctrl+B)" openDelay={500}>
-            <IconButton
-              icon={<FaBold size="14px" />}
-              aria-label="Bold"
-              onClick={() => formatText('bold')}
-              color={iconColor}
+              className="toolbar-button"
             />
           </Tooltip>
           
-          <Tooltip label="Italic (Ctrl+I)" openDelay={500}>
+          <Tooltip label="Italic (Ctrl+I)">
             <IconButton
-              icon={<FaItalic size="14px" />}
               aria-label="Italic"
-              onClick={() => formatText('italic')}
-              color={iconColor}
+              icon={<FaItalic />}
+              onClick={() => onFormat('italic')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
             />
           </Tooltip>
           
-          <Tooltip label="Strikethrough" openDelay={500}>
+          <Tooltip label="Heading 1">
             <IconButton
-              icon={<FaStrikethrough size="14px" />}
-              aria-label="Strikethrough"
-              onClick={() => formatText('strikethrough')}
-              color={iconColor}
+              aria-label="Heading 1"
+              icon={<FaHeading />}
+              onClick={() => onFormat('heading1')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
             />
           </Tooltip>
-        </ButtonGroup>
-        
-        <Divider orientation="vertical" h="20px" mx="2" />
-        
-        {/* Links and media */}
-        <ButtonGroup size="sm" variant="ghost" isAttached>
-          <Popover placement="bottom" closeOnBlur={false}>
-            <PopoverTrigger>
-              <Tooltip label="Insert Link (Ctrl+K)" openDelay={500}>
-                <IconButton
-                  icon={<LinkIcon boxSize="14px" />}
-                  aria-label="Insert Link"
-                  color={iconColor}
-                />
-              </Tooltip>
-            </PopoverTrigger>
-            <PopoverContent width="300px">
-              <PopoverArrow />
-              <PopoverCloseButton />
-              <PopoverHeader fontWeight="semibold">Insert Link</PopoverHeader>
-              <PopoverBody>
-                <Box>
-                  <InputGroup size="sm" mb="3">
-                    <InputLeftAddon>URL</InputLeftAddon>
-                    <Input 
-                      value={linkUrl} 
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                      placeholder="https://example.com"
-                    />
-                  </InputGroup>
-                  <Button 
-                    size="sm" 
-                    colorScheme="blue" 
-                    onClick={insertLink} 
-                    width="full"
-                    leftIcon={<CheckIcon />}
-                  >
-                    Insert Link
-                  </Button>
-                </Box>
-              </PopoverBody>
-            </PopoverContent>
-          </Popover>
           
-          <Popover placement="bottom" closeOnBlur={false}>
-            <PopoverTrigger>
-              <Tooltip label="Insert Image" openDelay={500}>
-                <IconButton
-                  icon={<FaImage size="14px" />}
-                  aria-label="Insert Image"
-                  color={iconColor}
-                />
-              </Tooltip>
-            </PopoverTrigger>
-            <PopoverContent width="300px">
-              <PopoverArrow />
-              <PopoverCloseButton />
-              <PopoverHeader fontWeight="semibold">Insert Image</PopoverHeader>
-              <PopoverBody>
-                <Box>
-                  <InputGroup size="sm" mb="2">
-                    <InputLeftAddon>URL</InputLeftAddon>
-                    <Input 
-                      value={imageUrl} 
-                      onChange={(e) => setImageUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </InputGroup>
-                  <InputGroup size="sm" mb="3">
-                    <InputLeftAddon>Alt</InputLeftAddon>
-                    <Input 
-                      value={imageAlt} 
-                      onChange={(e) => setImageAlt(e.target.value)}
-                      placeholder="Image description"
-                    />
-                  </InputGroup>
-                  <Button 
-                    size="sm" 
-                    colorScheme="blue" 
-                    onClick={insertImage} 
-                    width="full"
-                    leftIcon={<CheckIcon />}
-                  >
-                    Insert Image
-                  </Button>
-                </Box>
-              </PopoverBody>
-            </PopoverContent>
-          </Popover>
-        </ButtonGroup>
-        
-        <Divider orientation="vertical" h="20px" mx="2" />
-        
-        {/* Code */}
-        <ButtonGroup size="sm" variant="ghost" isAttached>
-          <Tooltip label="Inline Code" openDelay={500}>
+          <Tooltip label="Heading 2">
             <IconButton
-              icon={<FaCode size="14px" />}
+              aria-label="Heading 2"
+              icon={<Box as="span" fontSize="xs">H2</Box>}
+              onClick={() => onFormat('heading2')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Tooltip label="Heading 3">
+            <IconButton
+              aria-label="Heading 3"
+              icon={<Box as="span" fontSize="xs">H3</Box>}
+              onClick={() => onFormat('heading3')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Divider orientation="vertical" h="24px" />
+          
+          <Tooltip label="Bulleted List">
+            <IconButton
+              aria-label="Bulleted List"
+              icon={<FaListUl />}
+              onClick={() => onFormat('list')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Tooltip label="Numbered List">
+            <IconButton
+              aria-label="Numbered List"
+              icon={<FaListOl />}
+              onClick={() => onFormat('numbered-list')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Tooltip label="Quote">
+            <IconButton
+              aria-label="Quote"
+              icon={<FaQuoteLeft />}
+              onClick={() => onFormat('quote')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Tooltip label="Inline Code">
+            <IconButton
               aria-label="Inline Code"
-              onClick={() => formatText('code-inline')}
-              color={iconColor}
+              icon={<FaCode />}
+              onClick={() => onFormat('code')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
             />
           </Tooltip>
           
-          <Popover placement="bottom" closeOnBlur={false}>
+          <Tooltip label="Code Block">
+            <IconButton
+              aria-label="Code Block"
+              icon={<Box as="span" fontSize="xs">{'</>'}</Box>}
+              onClick={() => onFormat('codeblock')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Divider orientation="vertical" h="24px" />
+          
+          <Tooltip label="Link">
+            <IconButton
+              aria-label="Link"
+              icon={<FaLink />}
+              onClick={() => onFormat('link')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Tooltip label="Image">
+            <IconButton
+              aria-label="Image"
+              icon={<FaImage />}
+              onClick={() => onFormat('image')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+          
+          <Tooltip label="Horizontal Rule">
+            <IconButton
+              aria-label="Horizontal Rule"
+              icon={<MdHorizontalRule />}
+              onClick={() => onFormat('horizontal-rule')}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
+            />
+          </Tooltip>
+        </HStack>
+        
+        {/* Right side controls */}
+        <HStack spacing={2}>
+          {/* Active users */}
+          <Popover isOpen={isOpen} onOpen={onOpen} onClose={onClose}>
             <PopoverTrigger>
-              <Tooltip label="Code Block" openDelay={500}>
-                <IconButton
-                  icon={<BiCodeBlock size="16px" />}
-                  aria-label="Code Block"
-                  color={iconColor}
-                />
-              </Tooltip>
+              <Button 
+                leftIcon={<FaUserFriends />} 
+                size="sm" 
+                variant="ghost"
+                className="toolbar-button"
+              >
+                {activeUsers.length}
+              </Button>
             </PopoverTrigger>
-            <PopoverContent width="300px">
+            <PopoverContent width="250px">
               <PopoverArrow />
-              <PopoverCloseButton />
-              <PopoverHeader fontWeight="semibold">Insert Code Block</PopoverHeader>
-              <PopoverBody>
-                <Box>
-                  <InputGroup size="sm" mb="3">
-                    <InputLeftAddon>Language</InputLeftAddon>
-                    <Input 
-                      value={codeLanguage} 
-                      onChange={(e) => setCodeLanguage(e.target.value)}
-                      placeholder="javascript"
-                    />
-                  </InputGroup>
-                  <Button 
-                    size="sm" 
-                    colorScheme="blue" 
-                    onClick={insertCodeBlock} 
-                    width="full"
-                    leftIcon={<CheckIcon />}
-                  >
-                    Insert Code Block
-                  </Button>
-                </Box>
+              <PopoverBody p={3}>
+                <UserPresence users={activeUsers.map(u => u.user)} />
               </PopoverBody>
             </PopoverContent>
           </Popover>
-        </ButtonGroup>
         
-        <Divider orientation="vertical" h="20px" mx="2" />
-        
-        {/* Lists */}
-        <ButtonGroup size="sm" variant="ghost" isAttached>
-          <Tooltip label="Unordered List" openDelay={500}>
+          {/* Toggle preview */}
+          <Tooltip label={showPreview ? 'Hide Preview' : 'Show Preview'}>
             <IconButton
-              icon={<FaListUl size="14px" />}
-              aria-label="Unordered List"
-              onClick={() => formatText('unordered-list')}
-              color={iconColor}
+              aria-label={showPreview ? 'Hide Preview' : 'Show Preview'}
+              icon={showPreview ? <FaEyeSlash /> : <FaEye />}
+              onClick={togglePreview}
+              size="sm"
+              variant="ghost"
+              className="toolbar-button"
             />
           </Tooltip>
           
-          <Tooltip label="Ordered List" openDelay={500}>
+          {/* Toggle analytics */}
+          <Tooltip label={showAnalytics ? 'Hide Analytics' : 'Show Analytics'}>
             <IconButton
-              icon={<FaListOl size="14px" />}
-              aria-label="Ordered List"
-              onClick={() => formatText('ordered-list')}
-              color={iconColor}
+              aria-label={showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+              icon={<FaChartLine />}
+              onClick={toggleAnalytics}
+              size="sm"
+              variant="ghost"
+              className={`toolbar-button ${showAnalytics ? 'active' : ''}`}
             />
           </Tooltip>
-          
-          <Tooltip label="Task List" openDelay={500}>
-            <IconButton
-              icon={<FaTasks size="14px" />}
-              aria-label="Task List"
-              onClick={() => formatText('task-list')}
-              color={iconColor}
-            />
-          </Tooltip>
-        </ButtonGroup>
-        
-        <Divider orientation="vertical" h="20px" mx="2" />
-        
-        {/* Other formatting options */}
-        <ButtonGroup size="sm" variant="ghost" isAttached>
-          <Tooltip label="Blockquote" openDelay={500}>
-            <IconButton
-              icon={<FaQuoteRight size="14px" />}
-              aria-label="Blockquote"
-              onClick={() => formatText('blockquote')}
-              color={iconColor}
-            />
-          </Tooltip>
-          
-          <Tooltip label="Horizontal Rule" openDelay={500}>
-            <IconButton
-              icon={<TbSeparatorHorizontal size="16px" />}
-              aria-label="Horizontal Rule"
-              onClick={() => formatText('horizontal-rule')}
-              color={iconColor}
-            />
-          </Tooltip>
-          
-          <Tooltip label="Insert Table" openDelay={500}>
-            <IconButton
-              icon={<FaTable size="14px" />}
-              aria-label="Insert Table"
-              onClick={() => formatText('table')}
-              color={iconColor}
-            />
-          </Tooltip>
-        </ButtonGroup>
+        </HStack>
       </Flex>
-      
-      {/* View controls on the right */}
-      <Flex align="center" ml="auto">
-        <ButtonGroup size="sm" variant="ghost" isAttached>
-          <Tooltip label={showLineNumbers ? "Hide line numbers" : "Show line numbers"} openDelay={500}>
-            <IconButton
-              icon={showLineNumbers ? <FaRegFileCode size="14px" /> : <FaRegFile size="14px" />}
-              aria-label={showLineNumbers ? "Hide line numbers" : "Show line numbers"}
-              onClick={toggleLineNumbers}
-              color={iconColor}
-              bg={showLineNumbers ? activeBg : undefined}
-              _hover={{ bg: showLineNumbers ? activeBg : undefined }}
-            />
-          </Tooltip>
-          
-          <Tooltip label={showInvisibles ? "Hide invisible characters" : "Show invisible characters"} openDelay={500}>
-            <IconButton
-              icon={<TbTextWrap size="16px" />}
-              aria-label={showInvisibles ? "Hide invisible characters" : "Show invisible characters"}
-              onClick={toggleInvisibles}
-              color={iconColor}
-              bg={showInvisibles ? activeBg : undefined}
-              _hover={{ bg: showInvisibles ? activeBg : undefined }}
-            />
-          </Tooltip>
-          
-          <Tooltip label={showOthersCursors ? "Hide other users' cursors" : "Show other users' cursors"} openDelay={500}>
-            <IconButton
-              icon={showOthersCursors ? <FaUserFriends size="14px" /> : <FaUserSlash size="14px" />}
-              aria-label={showOthersCursors ? "Hide other users' cursors" : "Show other users' cursors"}
-              onClick={toggleOthersCursors}
-              color={iconColor}
-              bg={showOthersCursors ? activeBg : undefined}
-              _hover={{ bg: showOthersCursors ? activeBg : undefined }}
-            />
-          </Tooltip>
-        </ButtonGroup>
-        
-        {/* Connection status */}
-        {connected !== undefined && (
-          <Badge 
-            ml="2" 
-            colorScheme={connected ? "green" : "orange"}
-            variant="subtle"
-            display={{ base: 'none', sm: 'flex' }}
-            alignItems="center"
-          >
-            <Box
-              w="6px"
-              h="6px"
-              borderRadius="full"
-              bg={connected ? 'green.500' : 'orange.500'}
-              mr="1"
-              animation={connected ? undefined : "0.8s blink infinite"}
-            />
-            <Text fontSize="xs">
-              {connected ? 'Connected' : 'Reconnecting...'}
-            </Text>
-          </Badge>
-        )}
-      </Flex>
-    </Flex>
+    </Box>
   );
 };
 

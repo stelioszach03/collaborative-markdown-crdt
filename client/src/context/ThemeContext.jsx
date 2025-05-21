@@ -1,85 +1,53 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useColorMode } from '@chakra-ui/react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 
-/**
- * Context για το θέμα της εφαρμογής
- * @type {React.Context}
- */
-const ThemeContext = createContext({
-  theme: 'light',
-  toggleTheme: () => {},
-  isDarkMode: false
-});
+const ThemeContext = createContext();
 
-/**
- * Custom hook για χρήση του ThemeContext
- * @returns {Object} Το context με το θέμα και τις σχετικές λειτουργίες
- */
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  
-  return context;
-};
+export const useTheme = () => useContext(ThemeContext);
 
-/**
- * ThemeProvider Component
- * Διαχειρίζεται το θέμα της εφαρμογής (light/dark mode)
- * 
- * @param {Object} props - Component properties
- * @param {React.ReactNode} props.children - Child components
- */
 export const ThemeProvider = ({ children }) => {
-  // Χρήση του Chakra UI colorMode
-  const { colorMode, toggleColorMode } = useColorMode();
-  
-  // State για το τρέχον θέμα
-  const [theme, setTheme] = useState(colorMode || 'light');
-  
-  // Boolean για εύκολο έλεγχο του dark mode
-  const isDarkMode = theme === 'dark';
-  
-  // Debug για τρέχουσα κατάσταση
-  useEffect(() => {
-    console.log(`ThemeProvider initialized with colorMode: ${colorMode}`);
-  }, []);
-  
-  // Συγχρονισμός του theme με το colorMode όταν αλλάζει
-  useEffect(() => {
-    console.log(`ColorMode changed to: ${colorMode}`);
-    setTheme(colorMode);
-    
-    // Συγχρονισμός με το document class για το Tailwind dark mode
-    if (colorMode === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.body.classList.add('chakra-ui-dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.body.classList.remove('chakra-ui-dark');
+  // Check for saved theme preference or use system preference
+  const getInitialTheme = () => {
+    const savedTheme = Cookies.get('theme');
+    if (savedTheme) {
+      return savedTheme;
     }
-  }, [colorMode]);
-  
-  // Εναλλαγή του θέματος με memoization για βελτιωμένη απόδοση
-  const toggleTheme = useCallback(() => {
-    console.log(`Toggling theme from ${theme}`);
-    toggleColorMode();
-  }, [theme, toggleColorMode]);
-  
-  // Τιμή του context
-  const contextValue = {
-    theme,
-    toggleTheme,
-    isDarkMode
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
-  
+
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  // Toggle between light and dark theme
+  const toggleTheme = () => {
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
+      Cookies.set('theme', newTheme, { expires: 365 });
+      return newTheme;
+    });
+  };
+
+  // Update document class when theme changes
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  // Listen for system preference changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      // Only change if no explicit user preference has been set
+      if (!Cookies.get('theme')) {
+        setTheme(mediaQuery.matches ? 'dark' : 'light');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
   return (
-    <ThemeContext.Provider value={contextValue}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 };
-
-export default ThemeProvider; 

@@ -1,258 +1,145 @@
-/**
- * Utility functions for Markdown operations
- */
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import hljs from 'highlight.js';
 
-// Get markdown syntax for different elements
-export const markdownSyntax = {
-  heading: (level) => '#'.repeat(level) + ' ',
-  bold: '**',
-  italic: '*',
-  link: {
-    start: '[',
-    middle: '](',
-    end: ')',
-  },
-  image: {
-    start: '![',
-    middle: '](',
-    end: ')',
-  },
-  code: {
-    inline: '`',
-    block: '```',
-  },
-  blockquote: '> ',
-  listItem: {
-    unordered: '- ',
-    ordered: (num) => `${num}. `,
-    task: '- [ ] '
-  },
-  horizontalRule: '---',
-  strikethrough: '~~',
-  table: {
-    header: '| Header | Header |\n| --- | --- |',
-    row: '| Cell | Cell |',
-  },
+// Configure marked
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: true,
+  mangle: false,
+  smartLists: true,
+  smartypants: true,
+  highlight: (code, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return hljs.highlightAuto(code).value;
+  }
+});
+
+/**
+ * Render markdown to sanitized HTML
+ * @param {string} markdown - The markdown to render
+ * @returns {string} The sanitized HTML
+ */
+export const renderMarkdown = (markdown) => {
+  try {
+    const html = marked.parse(markdown);
+    return DOMPurify.sanitize(html);
+  } catch (error) {
+    console.error('Error rendering markdown:', error);
+    return `<p>Error rendering markdown: ${error.message}</p>`;
+  }
 };
 
-// Insert markdown syntax at cursor position
-export function insertMarkdown(text, syntax, selection, options = {}) {
-  const selectionText = text.substring(selection.start, selection.end);
-  let result;
-  
-  switch (syntax) {
-    case 'heading':
-      const level = options.level || 1;
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.heading(level) + selectionText + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'bold':
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.bold + selectionText + markdownSyntax.bold + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'italic':
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.italic + selectionText + markdownSyntax.italic + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'link':
-      const url = options.url || '';
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.link.start + (selectionText || 'link text') + 
-        markdownSyntax.link.middle + url + markdownSyntax.link.end + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'image':
-      const imgUrl = options.url || '';
-      const altText = selectionText || 'image';
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.image.start + altText + 
-        markdownSyntax.image.middle + imgUrl + markdownSyntax.image.end + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'code-inline':
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.code.inline + selectionText + markdownSyntax.code.inline + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'code-block':
-      const language = options.language || '';
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.code.block + language + '\n' + 
-        selectionText + '\n' + markdownSyntax.code.block + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'blockquote':
-      // Add blockquote to each line
-      const lines = selectionText.split('\n');
-      const quotedLines = lines.map(line => markdownSyntax.blockquote + line);
-      result = text.substring(0, selection.start) + 
-        quotedLines.join('\n') + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'unordered-list':
-      if (selectionText.trim() === '') {
-        result = text.substring(0, selection.start) + 
-          markdownSyntax.listItem.unordered + 
-          text.substring(selection.end);
-      } else {
-        const listLines = selectionText.split('\n');
-        const unorderedListLines = listLines.map(line => markdownSyntax.listItem.unordered + line);
-        result = text.substring(0, selection.start) + 
-          unorderedListLines.join('\n') + 
-          text.substring(selection.end);
-      }
-      return result;
-      
-    case 'ordered-list':
-      if (selectionText.trim() === '') {
-        result = text.substring(0, selection.start) + 
-          markdownSyntax.listItem.ordered(1) + 
-          text.substring(selection.end);
-      } else {
-        const listLines = selectionText.split('\n');
-        const orderedListLines = listLines.map((line, i) => 
-          markdownSyntax.listItem.ordered(i + 1) + line
-        );
-        result = text.substring(0, selection.start) + 
-          orderedListLines.join('\n') + 
-          text.substring(selection.end);
-      }
-      return result;
-      
-    case 'task-list':
-      if (selectionText.trim() === '') {
-        result = text.substring(0, selection.start) + 
-          markdownSyntax.listItem.task + 
-          text.substring(selection.end);
-      } else {
-        const listLines = selectionText.split('\n');
-        const taskListLines = listLines.map(line => markdownSyntax.listItem.task + line);
-        result = text.substring(0, selection.start) + 
-          taskListLines.join('\n') + 
-          text.substring(selection.end);
-      }
-      return result;
-      
-    case 'horizontal-rule':
-      result = text.substring(0, selection.start) + 
-        '\n' + markdownSyntax.horizontalRule + '\n' + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'strikethrough':
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.strikethrough + selectionText + markdownSyntax.strikethrough + 
-        text.substring(selection.end);
-      return result;
-      
-    case 'table':
-      result = text.substring(0, selection.start) + 
-        markdownSyntax.table.header + '\n' + markdownSyntax.table.row + 
-        text.substring(selection.end);
-      return result;
-      
-    default:
-      return text;
-  }
-}
-
-// Check if a line is a heading
-export function isHeading(line) {
-  return /^(#{1,6})\s/.test(line);
-}
-
-// Get heading level (1-6) from a line
-export function getHeadingLevel(line) {
-  const match = line.match(/^(#{1,6})\s/);
-  return match ? match[1].length : 0;
-}
-
-// Extract table of contents from markdown
-export function extractTableOfContents(markdown) {
-  if (!markdown) return [];
-  
-  const lines = markdown.split('\n');
-  const toc = [];
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (isHeading(line)) {
-      const level = getHeadingLevel(line);
-      const text = line.substring(level + 1).trim();
-      const id = text.toLowerCase().replace(/[^\w]+/g, '-');
-      
-      toc.push({
-        level,
-        text,
-        id,
-        line: i,
-      });
-    }
+/**
+ * Extract document statistics from a text
+ * @param {string} text - The text to analyze
+ * @returns {Object} The statistics
+ */
+export const getDocumentStats = (text) => {
+  if (!text) {
+    return {
+      chars: 0,
+      words: 0,
+      lines: 0,
+      headings: 0,
+      lists: 0,
+      codeBlocks: 0
+    };
   }
   
-  return toc;
-}
+  const lines = text.split('\n');
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const headings = (text.match(/^#+\s+/gm) || []).length;
+  const lists = (text.match(/^[\s]*[-*+]\s+/gm) || []).length + 
+               (text.match(/^[\s]*\d+\.\s+/gm) || []).length;
+  const codeBlocks = (text.match(/```[\s\S]*?```/g) || []).length;
+  
+  return {
+    chars: text.length,
+    words,
+    lines: lines.length,
+    headings,
+    lists,
+    codeBlocks
+  };
+};
 
-// Parse markdown frontmatter if present
-export function parseFrontmatter(markdown) {
-  const match = markdown.match(/^---\n([\s\S]*?)\n---/);
-  
-  if (!match) return { frontmatter: null, content: markdown };
-  
-  const frontmatterStr = match[1];
-  const content = markdown.substring(match[0].length).trim();
-  
-  // Parse frontmatter
-  const frontmatter = {};
-  frontmatterStr.split('\n').forEach(line => {
-    const [key, ...valueParts] = line.split(':');
-    if (key && valueParts.length) {
-      frontmatter[key.trim()] = valueParts.join(':').trim();
-    }
-  });
-  
-  return { frontmatter, content };
-}
+/**
+ * Get a markdown template for a new document
+ * @returns {string} A markdown template
+ */
+export const getMarkdownTemplate = () => {
+  return `# Untitled Document
 
-// Count words in markdown text
-export function countWords(text) {
-  // Remove code blocks
-  const noCodeBlocks = text.replace(/```[\s\S]*?```/g, '');
-  
-  // Remove inline code
-  const noCode = noCodeBlocks.replace(/`[^`]*`/g, '');
-  
-  // Remove URLs
-  const noUrls = noCode.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/https?:\/\/[^\s)]+/g, '');
-  
-  // Count words
-  return noUrls.split(/\s+/).filter(word => word.length > 0).length;
-}
+## Introduction
+Start writing your document here.
 
-// Estimate read time in minutes
-export function estimateReadTime(text) {
-  const words = countWords(text);
-  const wordsPerMinute = 200; // Average reading speed
-  return Math.max(1, Math.ceil(words / wordsPerMinute));
-}
+## Features
+- **Real-time collaboration**: Multiple users can edit the same document simultaneously
+- **Markdown support**: Write in Markdown and see the preview in real-time
+- **History tracking**: Document changes are tracked and can be visualized
 
-// Check if text has unsaved changes compared to saved version
-export function hasUnsavedChanges(currentText, savedText) {
-  return currentText !== savedText;
-}
+## Getting Started
+1. Edit this document in the editor on the left
+2. See the preview on the right
+3. Share the document URL with others to collaborate
 
-// Format code block with specified language
-export function formatCodeBlock(code, language) {
-  return `\`\`\`${language}\n${code}\n\`\`\``;
-}
+\`\`\`javascript
+// Add some code here
+console.log("Hello, Collaborative Markdown Editor!");
+\`\`\`
+
+> You can also add blockquotes, lists, and more using Markdown syntax.
+
+Happy editing!
+`;
+};
+
+/**
+ * Insert markdown syntax at cursor position
+ * @param {string} text - The current text
+ * @param {number} position - The cursor position
+ * @param {string} syntax - The markdown syntax to insert
+ * @param {Object} options - Additional options
+ * @returns {Object} The new text and cursor position
+ */
+export const insertMarkdown = (text, position, syntax, options = {}) => {
+  const { selectionStart, selectionEnd, prefix = '', suffix = '' } = options;
+  
+  // Check if text is a string
+  if (typeof text !== 'string') {
+    console.error('Text must be a string');
+    return { text, newPosition: position };
+  }
+
+  // Handle selections
+  if (selectionStart !== undefined && selectionEnd !== undefined && selectionStart !== selectionEnd) {
+    // Insert around selection
+    const before = text.substring(0, selectionStart);
+    const selection = text.substring(selectionStart, selectionEnd);
+    const after = text.substring(selectionEnd);
+    
+    const newText = `${before}${prefix}${syntax}${selection}${suffix}${after}`;
+    return { 
+      text: newText, 
+      newPosition: selectionEnd + prefix.length + syntax.length + suffix.length 
+    };
+  } else {
+    // Insert at cursor position
+    const before = text.substring(0, position);
+    const after = text.substring(position);
+    
+    const newText = `${before}${prefix}${syntax}${suffix}${after}`;
+    return { 
+      text: newText, 
+      newPosition: position + prefix.length + syntax.length 
+    };
+  }
+};

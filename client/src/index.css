@@ -1,374 +1,227 @@
-/* Tailwind CSS integration */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/**
- * Μεταβλητές CSS για τα θέματα
- */
-:root {
-  /* Light theme */
-  --editor-bg: #ffffff;
-  --editor-text: #2d3748;
-  --editor-cursor: #0073ff;
-  --editor-selection: rgba(0, 115, 255, 0.2);
-  --editor-line: #e2e8f0;
-  --primary-color: #0073ff;
-  --primary-dark: #005ccc;
-  --primary-light: #e6f1ff;
-  --bg-light: #ffffff;
-  --bg-dark: #1a202c;
-  --text-light: #2d3748;
-  --text-dark: #e2e8f0;
+@layer base {
+  :root {
+    color-scheme: light;
+    --background: 255 255 255;
+    --foreground: 15 23 42;
+    --muted: 241 245 249;
+    --muted-foreground: 100 116 139;
+    --border: 226 232 240;
+    --accent: 33 150 243;
+    --accent-foreground: 255 255 255;
+    --success: 34 197 94;
+    --error: 239 68 68;
+    --warning: 245 158 11;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --background: 20 20 30;
+    --foreground: 226 232 240;
+    --muted: 30 30 46;
+    --muted-foreground: 148 163 184;
+    --border: 51 51 76;
+    --accent: 59 130 246;
+    --accent-foreground: 255 255 255;
+    --success: 34 197 94;
+    --error: 239 68 68;
+    --warning: 245 158 11;
+  }
+
+  body {
+    @apply bg-editor-light dark:bg-editor-dark text-gray-900 dark:text-gray-100;
+    @apply font-sans antialiased;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+  }
+
+  /* Editor and markdown styling */
+  .editor-area {
+    @apply font-mono text-base leading-relaxed;
+    min-height: 300px;
+  }
+
+  .markdown-preview {
+    @apply prose dark:prose-dark max-w-none break-words;
+  }
+
+  .markdown-preview pre {
+    @apply font-mono bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-x-auto;
+  }
+
+  .markdown-preview code {
+    @apply font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded-md text-sm;
+  }
+
+  .markdown-preview pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .markdown-preview blockquote {
+    @apply border-l-4 border-gray-300 dark:border-gray-700 pl-4 italic;
+  }
+
+  .markdown-preview a {
+    @apply text-primary-600 dark:text-primary-400 hover:underline;
+  }
+
+  .markdown-preview h1, 
+  .markdown-preview h2, 
+  .markdown-preview h3, 
+  .markdown-preview h4, 
+  .markdown-preview h5, 
+  .markdown-preview h6 {
+    @apply font-semibold text-gray-900 dark:text-gray-100;
+  }
+
+  .markdown-preview h1 {
+    @apply text-3xl mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-800;
+  }
+
+  .markdown-preview h2 {
+    @apply text-2xl mt-6 mb-3 pb-1 border-b border-gray-200 dark:border-gray-800;
+  }
+
+  .markdown-preview h3 {
+    @apply text-xl mt-5 mb-2;
+  }
+
+  .markdown-preview h4 {
+    @apply text-lg mt-4 mb-2;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
+  }
+
+  /* User cursor */
+  .user-cursor {
+    @apply absolute pointer-events-none;
+    transition: transform 0.1s ease-out;
+  }
+
+  .user-cursor .name-flag {
+    @apply rounded text-xs text-white px-1.5 py-0.5 whitespace-nowrap;
+    transform: translate(-6px, -100%);
+  }
+
+  .user-cursor .cursor {
+    @apply w-[2px] h-[20px] absolute;
+    transform: translateX(-50%);
+  }
+
+  /* Code syntax highlighting */
+  .hljs {
+    @apply block overflow-auto bg-gray-100 dark:bg-gray-800 p-4 rounded-md;
+  }
+
+  .hljs-comment,
+  .hljs-quote {
+    @apply text-gray-500 dark:text-gray-500 italic;
+  }
+
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-subst {
+    @apply text-purple-600 dark:text-purple-400 font-semibold;
+  }
+
+  .hljs-string,
+  .hljs-symbol,
+  .hljs-bullet,
+  .hljs-attribute {
+    @apply text-emerald-600 dark:text-emerald-400;
+  }
+
+  .hljs-title,
+  .hljs-section {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+
+  .hljs-name,
+  .hljs-type,
+  .hljs-tag {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  /* Toolbar buttons */
+  .toolbar-button {
+    @apply rounded-md p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none;
+  }
+
+  .toolbar-button.active {
+    @apply bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300;
+  }
+
+  /* CodeMirror specific styling */
+  .cm-editor {
+    @apply font-mono text-base leading-relaxed;
+    height: 100%;
+  }
+
+  .cm-editor.cm-focused {
+    outline: none;
+  }
+
+  .cm-editor .cm-line {
+    @apply py-0.5;
+  }
 }
 
-.dark {
-  /* Dark theme */
-  --editor-bg: #1a202c;
-  --editor-text: #e2e8f0;
-  --editor-cursor: #63b3ed;
-  --editor-selection: rgba(99, 179, 237, 0.3);
-  --editor-line: #2d3748;
-}
+@layer components {
+  .button-primary {
+    @apply px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md 
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50 
+           transition duration-150 ease-in-out;
+  }
 
-/**
- * Βασικό styling
- */
-body {
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg-light);
-  color: var(--text-light);
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
+  .button-secondary {
+    @apply px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 
+           text-gray-800 dark:text-gray-200 font-medium rounded-md 
+           focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 
+           focus:ring-opacity-50 transition duration-150 ease-in-out;
+  }
 
-/* Διαχείριση Dark Mode για το body */
-body.chakra-ui-dark {
-  background-color: var(--bg-dark);
-  color: var(--text-dark);
-}
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 
+           rounded-md bg-white dark:bg-gray-800 
+           text-gray-900 dark:text-gray-100 
+           focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-500;
+  }
 
-/* Root Element */
-#root {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  flex-direction: column;
-}
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-subtle dark:shadow-subtle-dark 
+           border border-gray-200 dark:border-gray-700 overflow-hidden;
+  }
 
-/**
- * Editor styling
- */
-.markdown-editor {
-  font-family: 'Fira Code', monospace;
-  line-height: 1.6;
-  tab-size: 4;
-  background-color: var(--editor-bg);
-  color: var(--editor-text);
-}
+  .panel {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-subtle dark:shadow-subtle-dark 
+           border border-gray-200 dark:border-gray-700;
+  }
 
-.markdown-editor textarea {
-  resize: none;
-  outline: none;
-  border: none;
-  padding: 16px;
-  font-family: 'Fira Code', monospace;
-  line-height: 1.6;
-  width: 100%;
-  height: 100%;
-  background-color: var(--editor-bg);
-  color: var(--editor-text);
-}
+  .sidebar-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-md text-gray-700 dark:text-gray-300 
+           hover:bg-gray-200 dark:hover:bg-gray-700 
+           cursor-pointer transition-colors duration-150;
+  }
 
-.markdown-editor textarea::selection {
-  background-color: var(--editor-selection);
-}
-
-/**
- * User presence styling
- */
-.user-cursor {
-  position: absolute;
-  width: 2px;
-  height: 18px;
-  pointer-events: none;
-  transition: transform 0.1s ease;
-  z-index: 10;
-}
-
-.user-label {
-  position: absolute;
-  top: -18px;
-  left: 0;
-  font-size: 12px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 11;
-}
-
-.presence-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-}
-
-/**
- * Editor line numbers
- */
-.line-number.current-line {
-  background-color: var(--editor-selection);
-  color: var(--editor-text);
-  font-weight: 500;
-  border-radius: 2px;
-}
-
-/**
- * Show invisible characters
- */
-.show-invisibles .space:before {
-  content: "·";
-  color: rgba(127, 127, 127, 0.5);
-  opacity: 0.6;
-  user-select: none;
-}
-
-.show-invisibles .tab:before {
-  content: "→";
-  color: rgba(127, 127, 127, 0.5);
-  opacity: 0.6;
-  user-select: none;
-}
-
-.show-invisibles .cr:before {
-  content: "↵";
-  color: rgba(127, 127, 127, 0.5);
-  opacity: 0.6;
-  user-select: none;
-}
-
-/**
- * Markdown preview styling
- */
-.markdown-preview h1 {
-  @apply text-2xl font-bold mb-4 mt-6;
-}
-
-.markdown-preview h2 {
-  @apply text-xl font-bold mb-3 mt-5;
-}
-
-.markdown-preview h3 {
-  @apply text-lg font-bold mb-2 mt-4;
-}
-
-.markdown-preview h4 {
-  @apply text-base font-bold mb-2 mt-4;
-}
-
-.markdown-preview h5 {
-  @apply text-sm font-bold mb-1 mt-3;
-}
-
-.markdown-preview h6 {
-  @apply text-xs font-bold mb-1 mt-3;
-}
-
-.markdown-preview p {
-  @apply mb-4;
-}
-
-.markdown-preview ul, .markdown-preview ol {
-  @apply mb-4 ml-5;
-}
-
-.markdown-preview ul {
-  @apply list-disc;
-}
-
-.markdown-preview ol {
-  @apply list-decimal;
-}
-
-.markdown-preview li {
-  @apply mb-2;
-}
-
-.markdown-preview li > ul, .markdown-preview li > ol {
-  @apply mt-2;
-}
-
-.markdown-preview code {
-  @apply font-mono text-sm px-1 py-0.5 rounded;
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.dark .markdown-preview code {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.markdown-preview pre {
-  @apply font-mono text-sm p-3 rounded mb-4 overflow-x-auto;
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.dark .markdown-preview pre {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.markdown-preview blockquote {
-  @apply border-l-4 pl-4 italic my-4;
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-.dark .markdown-preview blockquote {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.markdown-preview a {
-  @apply text-blue-600 hover:underline;
-}
-
-.dark .markdown-preview a {
-  @apply text-blue-400;
-}
-
-.markdown-preview table {
-  @apply w-full border-collapse mb-4;
-}
-
-.markdown-preview th, .markdown-preview td {
-  @apply border p-2;
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-.dark .markdown-preview th, .dark .markdown-preview td {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.markdown-preview img {
-  @apply max-w-full h-auto;
-}
-
-/**
- * Animations
- */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { transform: translateY(10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes slideDown {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s ease-out;
-}
-
-.animate-pulse {
-  animation: pulse 2s infinite;
-}
-
-/**
- * Custom scrollbars
- */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/**
- * Transitions
- */
-.fade-enter {
-  opacity: 0;
-}
-.fade-enter-active {
-  opacity: 1;
-  transition: opacity 300ms;
-}
-.fade-exit {
-  opacity: 1;
-}
-.fade-exit-active {
-  opacity: 0;
-  transition: opacity 300ms;
-}
-
-/**
- * Utility classes
- */
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+  .sidebar-item.active {
+    @apply bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300;
+  }
 }

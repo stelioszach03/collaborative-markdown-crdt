@@ -1,149 +1,106 @@
-import React from 'react';
-import { Box, Text, Flex, useColorModeValue } from '@chakra-ui/react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useRef } from 'react';
+import { Box, Text } from '@chakra-ui/react';
+import { useDocuments } from '../../context/DocumentContext';
 
-/**
- * UserCursor Component - Displays remote user cursors in the editor
- * 
- * @param {Object} props - Component properties
- * @param {string} props.username - Username of remote user
- * @param {string} props.color - Cursor color for the user
- * @param {Object} props.position - Position coordinates {top, left}
- * @param {Object} props.selection - Selection range if applicable
- * @param {boolean} props.isActive - Whether the user is actively typing
- */
-const UserCursor = ({ username, color, position, selection, isActive = false }) => {
-  // Animation variants for blinking cursor
-  const cursorVariants = {
-    blink: {
-      opacity: [1, 0.5, 1],
-      transition: { 
-        duration: 1.5,
-        repeat: Infinity,
-        ease: "linear"
+const UserCursor = ({ user, selection, editorRef }) => {
+  const { user: currentUser } = useDocuments();
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [visible, setVisible] = useState(false);
+  const cursorRef = useRef(null);
+
+  // Don't show the current user's cursor
+  if (!user || !selection || (currentUser && user.id === currentUser.id)) {
+    return null;
+  }
+
+  // Update cursor position when selection changes
+  useEffect(() => {
+    if (!editorRef.current || !selection) return;
+
+    // Get editor element
+    const editorElement = editorRef.current;
+    
+    // Try to get cursor coordinates from CodeMirror
+    const cmEditor = editorElement.querySelector('.cm-editor');
+    if (!cmEditor) return;
+    
+    // Find cursor position
+    try {
+      // Find the position of the cursor in the editor
+      const cmContent = cmEditor.querySelector('.cm-content');
+      if (!cmContent) return;
+      
+      // Get editor container coordinates
+      const editorRect = editorElement.getBoundingClientRect();
+      
+      // Try to find cursor position by looking at the line and character position
+      const lines = cmContent.querySelectorAll('.cm-line');
+      
+      // Count characters to find the right position
+      let charCount = 0;
+      let foundLine = null;
+      let lineTop = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineLength = line.textContent.length + 1; // +1 for the newline
+        
+        if (charCount + lineLength > selection.head) {
+          foundLine = line;
+          lineTop = line.offsetTop;
+          break;
+        }
+        
+        charCount += lineLength;
       }
-    },
-    visible: { 
-      opacity: 1
-    }
-  };
-  
-  // Animation variants for typing indicator
-  const typingVariants = {
-    typing: {
-      y: [0, -3, 0],
-      transition: {
-        repeat: Infinity,
-        duration: 0.6,
-        ease: "easeInOut",
-        times: [0, 0.5, 1],
-        repeatType: "loop"
+      
+      if (foundLine) {
+        // Approximate horizontal position (not perfect, but gives a reasonable estimate)
+        // For a more accurate position, we would need to account for character width
+        const charsInLine = selection.head - charCount;
+        const avgCharWidth = 8; // Average character width in pixels
+        
+        const x = charsInLine * avgCharWidth;
+        const y = lineTop;
+        
+        setPosition({
+          x,
+          y
+        });
+        
+        setVisible(true);
       }
+    } catch (error) {
+      console.error('Error calculating cursor position:', error);
+      setVisible(false);
     }
-  };
-  
-  // If no position is provided, don't render
-  if (!position) return null;
+  }, [selection, editorRef]);
+
+  // Don't render if cursor isn't visible
+  if (!visible) return null;
 
   return (
-    <>
-      {/* Cursor */}
-      <motion.div
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        style={{
-          position: 'absolute',
-          zIndex: 50,
-          pointerEvents: 'none',
-          top: position.top,
-          left: position.left
-        }}
+    <Box
+      ref={cursorRef}
+      className="user-cursor"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+      }}
+      zIndex="5"
+    >
+      <Box 
+        className="name-flag"
+        bg={user.color}
+        mb={1}
       >
-        <motion.div
-          variants={cursorVariants}
-          animate={isActive ? "blink" : "visible"}
-        >
-          <Box
-            w="2px"
-            h="20px"
-            bg={color}
-            position="relative"
-          >
-            {/* Username label */}
-            <Flex
-              position="absolute"
-              top="-22px"
-              left="-1px"
-              bg={color}
-              color="white"
-              fontSize="xs"
-              fontWeight="medium"
-              py="1"
-              px="2"
-              borderRadius="md"
-              whiteSpace="nowrap"
-              boxShadow="sm"
-              alignItems="center"
-              zIndex={60}
-            >
-              <Text>{username}</Text>
-              
-              {/* Typing indicator */}
-              {isActive && (
-                <Flex ml="2">
-                  <motion.div
-                    variants={typingVariants}
-                    animate="typing"
-                    custom={0}
-                    style={{ display: 'flex' }}
-                  >
-                    <Box w="2px" h="2px" bg="white" mx="0.5px" borderRadius="full" />
-                  </motion.div>
-                  <motion.div
-                    variants={typingVariants}
-                    animate="typing"
-                    custom={1}
-                    style={{ display: 'flex' }}
-                  >
-                    <Box w="2px" h="2px" bg="white" mx="0.5px" borderRadius="full" />
-                  </motion.div>
-                  <motion.div
-                    variants={typingVariants}
-                    animate="typing"
-                    custom={2}
-                    style={{ display: 'flex' }}
-                  >
-                    <Box w="2px" h="2px" bg="white" mx="0.5px" borderRadius="full" />
-                  </motion.div>
-                </Flex>
-              )}
-            </Flex>
-          </Box>
-        </motion.div>
-      </motion.div>
-      
-      {/* Text selection */}
-      {selection && selection.anchor && selection.head && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.4 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          style={{
-            position: 'absolute',
-            top: Math.min(selection.anchor.top, selection.head.top),
-            left: Math.min(selection.anchor.left, selection.head.left),
-            width: Math.abs(selection.head.left - selection.anchor.left),
-            height: Math.abs(selection.head.top - selection.anchor.top) || 20,
-            backgroundColor: color,
-            zIndex: 30,
-            pointerEvents: 'none'
-          }}
-        />
-      )}
-    </>
+        {user.name}
+      </Box>
+      <Box 
+        className="cursor" 
+        bg={user.color}
+      />
+    </Box>
   );
 };
 

@@ -1,509 +1,241 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { useToast } from '@chakra-ui/react';
+import Cookies from 'js-cookie';
 
-// Create Context
-const DocumentContext = createContext(null);
+const API_URL = '/api';
 
-// Custom hook to access the context
-export const useDocument = () => {
-  const context = useContext(DocumentContext);
-  if (context === null) {
-    throw new Error('useDocument must be used within a DocumentProvider');
-  }
-  return context;
-};
+const DocumentContext = createContext();
+
+export const useDocuments = () => useContext(DocumentContext);
 
 export const DocumentProvider = ({ children }) => {
   const [documents, setDocuments] = useState([]);
-  const [currentDoc, setCurrentDoc] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [provider, setProvider] = useState(null);
-  const providerRef = useRef(null);
-  const [ydoc, setYdoc] = useState(null);
-  const [awareness, setAwareness] = useState(null);
-  const [text, setText] = useState('');
-  
-  // Store userId in localStorage or create new one
-  const [userId] = useState(() => {
-    const storedId = localStorage.getItem('userId');
-    if (storedId) return storedId;
-    const newId = uuidv4();
-    localStorage.setItem('userId', newId);
-    return newId;
-  });
-  
-  // Store username in localStorage or use default
-  const [username, setUsername] = useState(() => {
-    const storedName = localStorage.getItem('username');
-    return storedName || 'Guest';
-  });
-  
-  // Create consistent color for user
-  const [userColor] = useState(() => getRandomColor(userId));
-  
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [activeUsers, setActiveUsers] = useState(new Map());
-  const toast = useToast();
+  const [currentDocument, setCurrentDocument] = useState(null);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
-  // Variables for reconnection
-  const reconnectTimerRef = useRef(null);
-  const maxReconnectAttempts = 5;
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-
-  // Initialize user
+  // Initialize user if not already set
   useEffect(() => {
-    localStorage.setItem('userId', userId);
-    if (!localStorage.getItem('username')) {
-      localStorage.setItem('username', username);
-    }
-  }, [userId, username]);
+    const userId = Cookies.get('userId') || uuidv4();
+    const username = Cookies.get('username') || `User_${userId.slice(0, 5)}`;
+    const userColor = Cookies.get('userColor') || getRandomColor();
 
-  // Load documents
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/documents');
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to fetch documents');
-        }
-        
-        const data = await response.json();
-        setDocuments(data);
-        setIsInitialLoad(false);
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-        setError(err.message);
-        toast({
-          title: 'Error loading documents',
-          description: err.message,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Save user data to cookies
+    Cookies.set('userId', userId, { expires: 365 });
+    Cookies.set('username', username, { expires: 365 });
+    Cookies.set('userColor', userColor, { expires: 365 });
 
-    fetchDocuments();
-  }, [toast]);
+    setUser({
+      id: userId,
+      name: username,
+      color: userColor
+    });
+  }, []);
 
-  // Cleanup and disconnect
-  useEffect(() => {
-    return () => {
-      if (providerRef.current) {
-        console.log('Disconnecting WebSocket provider during cleanup');
-        providerRef.current.disconnect();
-        providerRef.current = null;
+  // Generate random pastel color for user
+  const getRandomColor = () => {
+    const colors = [
+      '#F87171', // Red
+      '#FB923C', // Orange
+      '#FBBF24', // Amber
+      '#A3E635', // Lime
+      '#34D399', // Emerald
+      '#22D3EE', // Cyan
+      '#60A5FA', // Blue
+      '#818CF8', // Indigo
+      '#A78BFA', // Violet
+      '#E879F9', // Fuchsia
+      '#F472B6', // Pink
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  // Fetch all documents
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/documents`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
       }
       
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Track awareness changes
-  useEffect(() => {
-    if (!awareness) return;
-
-    const updateActiveUsers = () => {
-      const users = new Map();
-      awareness.getStates().forEach((state, clientId) => {
-        if (state.userId) {
-          users.set(state.userId, {
-            username: state.username || 'Anonymous',
-            color: state.color || '#cccccc',
-            cursor: state.cursor,
-            selection: state.selection,
-            clientId,
-            lastUpdate: state.lastUpdate || Date.now()
-          });
-        }
-      });
-      setActiveUsers(users);
-    };
-
-    updateActiveUsers(); // Initial state
-    awareness.on('change', updateActiveUsers);
-
-    return () => {
-      awareness.off('change', updateActiveUsers);
-    };
-  }, [awareness]);
-
-  // Get WebSocket URL based on current window location
-  const getWebSocketUrl = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    
-    return `${protocol}//${host}/ws`;
-  }, []);
-
-  // Connect to document
-  const connectToDocument = useCallback((docId, docName = 'Untitled Document') => {
-    // Check for existing provider
-    if (providerRef.current && currentDoc && currentDoc.id === docId) {
-      console.log(`Already connected to document: ${docId}`);
-      return { 
-        ytext: providerRef.current.doc.getText('content'), 
-        provider: providerRef.current 
-      };
-    }
-    
-    // Cleanup previous connection
-    if (providerRef.current) {
-      console.log(`Disconnecting from previous document before connecting to: ${docId}`);
-      providerRef.current.disconnect();
-      providerRef.current = null;
-    }
-    
-    // Cancel any reconnection timers
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-
-    try {
-      // Create new Y.Doc
-      const newYdoc = new Y.Doc();
-      setYdoc(newYdoc);
-
-      // Configure WebSocket URL
-      const wsUrl = getWebSocketUrl();
-      console.log(`Connecting to WebSocket: ${wsUrl}, document: ${docId}`);
-
-      // Connect to WebSocket
-      const newProvider = new WebsocketProvider(wsUrl, docId, newYdoc, { 
-        connect: true,
-        maxBackoffTime: 10000, 
-        disableBc: true,
-      });
-
-      // Store provider
-      providerRef.current = newProvider;
-      setProvider(newProvider);
-
-      // Monitor connection status
-      newProvider.on('status', ({ status }) => {
-        console.log(`WebSocket status: ${status}`);
-        setConnectionStatus(status);
-        
-        if (status === 'connected') {
-          // Reset reconnect attempts after successful connection
-          setReconnectAttempts(0);
-          
-          toast({
-            title: 'Connected',
-            description: 'Now connected to document',
-            status: 'success',
-            duration: 2000,
-            isClosable: true,
-            position: 'bottom-right'
-          });
-        } else if (status === 'disconnected') {
-          toast({
-            title: 'Disconnected',
-            description: 'Connection lost. Attempting to reconnect...',
-            status: 'warning',
-            duration: 3000,
-            isClosable: true,
-            position: 'bottom-right'
-          });
-        }
-      });
-
-      // Handle connection errors
-      newProvider.on('connection-error', (error) => {
-        console.error('WebSocket connection error:', error);
-        setError(`Connection error: ${error.message || 'Unknown error'}`);
-        
-        // Try to reconnect with increasing delay
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
-          
-          reconnectTimerRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1);
-            // Try to reconnect with the same docId and docName
-            connectToDocument(docId, docName);
-          }, delay);
-        } else {
-          toast({
-            title: 'Connection Error',
-            description: `Failed to connect to document after ${maxReconnectAttempts} attempts. Please try again later.`,
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      });
-
-      // Set up awareness
-      newProvider.awareness.setLocalState({
-        userId,
-        username,
-        color: userColor,
-        cursor: null,
-        selection: null,
-        lastUpdate: Date.now()
-      });
-
-      setAwareness(newProvider.awareness);
-      setCurrentDoc({ id: docId, name: docName });
-
-      // Connect to the text
-      const ytext = newYdoc.getText('content');
-      setText(ytext.toString());
-
-      ytext.observe(event => {
-        setText(ytext.toString());
-      });
-
-      return { ytext, provider: newProvider };
+      const data = await response.json();
+      setDocuments(data);
+      setError(null);
     } catch (err) {
-      console.error('Error connecting to document:', err);
-      setError(`Error connecting to document: ${err.message}`);
-      toast({
-        title: 'Connection Error',
-        description: `Failed to connect to document: ${err.message}`,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-      return { ytext: null, provider: null };
+      console.error('Error fetching documents:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }, [currentDoc, toast, userId, username, userColor, getWebSocketUrl, reconnectAttempts]);
+  };
 
-  // Create new document
-  const createDocument = useCallback(async (name = 'Untitled Document') => {
+  // Get a document by ID
+  const getDocumentById = async (id) => {
     try {
-      setIsLoading(true);
-      const response = await fetch('/api/documents', {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/documents/${id}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          navigate('/404');
+          return null;
+        }
+        throw new Error('Failed to fetch document');
+      }
+      
+      const document = await response.json();
+      setCurrentDocument(document);
+      return document;
+    } catch (err) {
+      console.error(`Error fetching document ${id}:`, err);
+      setError(err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create a new document
+  const createDocument = async (name = 'Untitled Document') => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/documents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name }),
       });
-
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create document');
+        throw new Error('Failed to create document');
       }
       
-      const newDoc = await response.json();
-      setDocuments(prev => [...prev, newDoc]);
-      
-      toast({
-        title: 'Document Created',
-        description: `"${name}" has been created successfully`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      
-      connectToDocument(newDoc.id, newDoc.name);
-      return newDoc;
+      const newDocument = await response.json();
+      setDocuments(prev => [...prev, newDocument]);
+      setCurrentDocument(newDocument);
+      navigate(`/documents/${newDocument.id}`);
+      return newDocument;
     } catch (err) {
       console.error('Error creating document:', err);
       setError(err.message);
-      toast({
-        title: 'Error',
-        description: `Failed to create document: ${err.message}`,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
       return null;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [connectToDocument, toast]);
+  };
 
-  // Update document name
-  const updateDocumentName = useCallback(async (docId, newName) => {
+  // Update a document
+  const updateDocument = async (id, data) => {
     try {
-      const response = await fetch(`/api/documents/${docId}`, {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/documents/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify(data),
       });
-
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update document');
+        throw new Error('Failed to update document');
       }
       
-      const updatedDoc = await response.json();
-      setDocuments(docs => docs.map(doc => doc.id === docId ? updatedDoc : doc));
+      const updatedDocument = await response.json();
       
-      if (currentDoc && currentDoc.id === docId) {
-        setCurrentDoc({ ...currentDoc, name: newName });
+      setDocuments(prev => 
+        prev.map(doc => doc.id === id ? updatedDocument : doc)
+      );
+      
+      if (currentDocument?.id === id) {
+        setCurrentDocument(updatedDocument);
       }
       
-      toast({
-        title: 'Document Renamed',
-        description: `Document renamed to "${newName}"`,
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-      });
-      
-      return updatedDoc;
+      return updatedDocument;
     } catch (err) {
-      console.error('Error updating document name:', err);
+      console.error(`Error updating document ${id}:`, err);
       setError(err.message);
-      toast({
-        title: 'Error',
-        description: `Failed to rename document: ${err.message}`,
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-      throw err;
+      return null;
+    } finally {
+      setLoading(false);
     }
-  }, [currentDoc, toast]);
+  };
 
-  // Delete document
-  const deleteDocument = useCallback(async (docId) => {
+  // Delete a document
+  const deleteDocument = async (id) => {
     try {
-      const response = await fetch(`/api/documents/${docId}`, {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/documents/${id}`, {
         method: 'DELETE',
       });
-
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to delete document');
+        throw new Error('Failed to delete document');
       }
       
-      setDocuments(docs => docs.filter(doc => doc.id !== docId));
+      setDocuments(prev => prev.filter(doc => doc.id !== id));
       
-      if (currentDoc && currentDoc.id === docId) {
-        if (providerRef.current) {
-          providerRef.current.disconnect();
-          providerRef.current = null;
-        }
-        setCurrentDoc(null);
-        setYdoc(null);
-        setProvider(null);
-        setAwareness(null);
-        setText('');
+      if (currentDocument?.id === id) {
+        setCurrentDocument(null);
+        navigate('/');
       }
-      
-      toast({
-        title: 'Document Deleted',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
       
       return true;
     } catch (err) {
-      console.error('Error deleting document:', err);
+      console.error(`Error deleting document ${id}:`, err);
       setError(err.message);
-      toast({
-        title: 'Error',
-        description: `Failed to delete document: ${err.message}`,
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-      throw err;
+      return false;
+    } finally {
+      setLoading(false);
     }
-  }, [currentDoc, toast]);
-
-  // Create consistent color for user
-  function getRandomColor(id) {
-    const colors = [
-      '#FF6B6B', '#4ECDC4', '#FF9F1C', '#A78BFA', 
-      '#10B981', '#F472B6', '#60A5FA', '#FBBF24'
-    ];
-    
-    // Hash function for consistent result
-    const hash = id.split('').reduce((acc, char) => {
-      return acc + char.charCodeAt(0);
-    }, 0);
-    
-    return colors[hash % colors.length];
-  }
+  };
 
   // Update username
-  const updateUsername = useCallback((newUsername) => {
-    setUsername(newUsername);
-    localStorage.setItem('username', newUsername);
+  const updateUsername = (newUsername) => {
+    if (!newUsername || newUsername.trim() === '') return;
     
-    if (awareness) {
-      const current = awareness.getLocalState();
-      if (current) {
-        awareness.setLocalState({
-          ...current,
-          username: newUsername,
-        });
-      }
-    }
+    Cookies.set('username', newUsername, { expires: 365 });
+    setUser(prev => ({
+      ...prev,
+      name: newUsername
+    }));
+  };
+
+  // Update user color
+  const updateUserColor = (newColor) => {
+    if (!newColor) return;
     
-    toast({
-      title: 'Username Updated',
-      description: `Your username is now "${newUsername}"`,
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
-      position: 'bottom-right'
-    });
-  }, [awareness, toast]);
+    Cookies.set('userColor', newColor, { expires: 365 });
+    setUser(prev => ({
+      ...prev,
+      color: newColor
+    }));
+  };
 
-  // Refresh connection
-  const refreshConnection = useCallback(() => {
-    if (currentDoc) {
-      setReconnectAttempts(0);
-      connectToDocument(currentDoc.id, currentDoc.name);
-      
-      toast({
-        title: 'Connection Refreshed',
-        description: 'Attempting to reconnect to the document',
-        status: 'info',
-        duration: 2000,
-        isClosable: true,
-        position: 'bottom-right'
-      });
-    }
-  }, [currentDoc, connectToDocument, toast]);
+  // Initial fetch of documents
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
 
-  // Provide functions and data to children
   return (
     <DocumentContext.Provider value={{
       documents,
-      currentDoc,
-      isLoading,
-      isInitialLoad,
+      loading,
       error,
-      text,
-      ydoc,
-      provider,
-      awareness,
-      userId,
-      username,
-      userColor,
-      connectionStatus,
-      activeUsers,
-      connectToDocument,
+      currentDocument,
+      user,
+      fetchDocuments,
+      getDocumentById,
       createDocument,
-      updateDocumentName,
+      updateDocument,
       deleteDocument,
       updateUsername,
-      refreshConnection,
+      updateUserColor
     }}>
       {children}
     </DocumentContext.Provider>
