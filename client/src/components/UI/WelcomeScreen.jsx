@@ -16,7 +16,8 @@ import {
   CardBody, 
   CardHeader, 
   IconButton,
-  useToast
+  useToast,
+  HStack
 } from '@chakra-ui/react';
 import { AddIcon, SearchIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { FaRegFileAlt, FaMarkdown, FaRegEdit, FaUserFriends } from 'react-icons/fa';

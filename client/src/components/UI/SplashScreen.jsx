@@ -5,8 +5,8 @@ import {
   Text, 
   Flex, 
   useColorModeValue, 
-  Spinner, 
-  Stack 
+  Spinner,
+  Stack
 } from '@chakra-ui/react';
 import Logo from './Logo';
 

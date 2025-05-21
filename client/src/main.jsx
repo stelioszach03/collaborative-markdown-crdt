@@ -1,3 +1,4 @@
+// Import React explicitly (remove the auto-injection in vite.config.js instead)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { 

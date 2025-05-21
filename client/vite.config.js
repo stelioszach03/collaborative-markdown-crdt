@@ -19,17 +19,8 @@ export default defineConfig(({ command, mode }) => {
     // Plugins
     plugins: [
       react({
-        // Βελτιστοποιήσεις για το React plugin
-        jsxRuntime: 'automatic',
-        babel: {
-          plugins: [
-            // Προσθήκη plugin για error handling σε production mode
-            isProduction && [
-              'transform-remove-console',
-              { exclude: ['error', 'warn'] }
-            ]
-          ].filter(Boolean)
-        }
+        // Simple React configuration without Babel plugins
+        jsxRuntime: 'automatic'
       })
     ],
     
@@ -92,7 +83,8 @@ export default defineConfig(({ command, mode }) => {
     // Βελτιστοποιήσεις για το esbuild
     esbuild: {
       logOverride: { 'this-is-undefined-in-esm': 'silent' },
-      jsxInject: `import React from 'react'` // Αυτόματο import του React
+      // Remove the jsxInject option to avoid conflicts with explicit imports
+      // jsxInject: `import React from 'react'`
     },
     
     // Βελτιστοποίηση εξαρτήσεων
