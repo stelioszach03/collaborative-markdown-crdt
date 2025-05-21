@@ -4,8 +4,7 @@ import {
   Heading, 
   Text, 
   Button, 
-  Stack,
-  VStack, // Προσθήκη του VStack εδώ
+  VStack,
   Flex, 
   useColorModeValue,
   Input, 
@@ -18,16 +17,26 @@ import {
   CardHeader, 
   IconButton,
   useToast,
-  HStack
+  HStack,
+  Container,
+  Icon
 } from '@chakra-ui/react';
 import { AddIcon, SearchIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { FaRegFileAlt, FaMarkdown, FaRegEdit, FaUserFriends } from 'react-icons/fa';
+import { 
+  FaRegFileAlt, 
+  FaMarkdown, 
+  FaRegEdit, 
+  FaUserFriends,
+  FaRegClock,
+  FaCode,
+  FaBrain
+} from 'react-icons/fa';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 
 /**
- * WelcomeScreen Component
- * Αρχική οθόνη που εμφανίζεται όταν ο χρήστης δεν έχει επιλέξει έγγραφο
+ * WelcomeScreen Component - Initial screen when no document is selected
  * 
  * @param {Object} props - Component properties
  * @param {Function} props.onCreateDocument - Function to create a new document
@@ -39,13 +48,13 @@ const WelcomeScreen = ({ onCreateDocument }) => {
   const navigate = useNavigate();
   const toast = useToast();
   
-  // Χρώματα με βάση το color mode
+  // Colors
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
   const mutedColor = useColorModeValue('gray.500', 'gray.400');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const primaryColor = useColorModeValue('blue.500', 'blue.300');
+  const primaryColor = useColorModeValue('blue.500', 'blue.400');
 
   // Animation effect after mounting
   useEffect(() => {
@@ -56,9 +65,7 @@ const WelcomeScreen = ({ onCreateDocument }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  /**
-   * Χειρισμός δημιουργίας νέου εγγράφου
-   */
+  // Handle document creation
   const handleCreateDocument = async () => {
     if (isCreating) return;
     
@@ -69,8 +76,8 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       
       if (doc) {
         toast({
-          title: "Επιτυχής δημιουργία εγγράφου",
-          description: `Το έγγραφο "${name}" δημιουργήθηκε επιτυχώς.`,
+          title: "Document Created",
+          description: `"${name}" has been created successfully.`,
           status: "success",
           duration: 3000,
           isClosable: true,
@@ -80,8 +87,8 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       }
     } catch (error) {
       toast({
-        title: "Σφάλμα",
-        description: "Η δημιουργία του εγγράφου απέτυχε. Παρακαλώ δοκιμάστε ξανά.",
+        title: "Error",
+        description: "Failed to create document. Please try again.",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -93,10 +100,7 @@ const WelcomeScreen = ({ onCreateDocument }) => {
     }
   };
 
-  /**
-   * Χειρισμός δημιουργίας εγγράφου από έτοιμο πρότυπο
-   * @param {string} templateName - Όνομα του προτύπου
-   */
+  // Create from template
   const createFromTemplate = (templateName) => {
     if (isCreating) return;
     
@@ -105,8 +109,8 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       .then(doc => {
         if (doc) {
           toast({
-            title: "Επιτυχής δημιουργία εγγράφου",
-            description: `Το έγγραφο "${templateName}" δημιουργήθηκε επιτυχώς από πρότυπο.`,
+            title: "Document Created",
+            description: `"${templateName}" has been created successfully from template.`,
             status: "success",
             duration: 3000,
             isClosable: true,
@@ -117,8 +121,8 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       })
       .catch(error => {
         toast({
-          title: "Σφάλμα",
-          description: "Η δημιουργία του εγγράφου απέτυχε. Παρακαλώ δοκιμάστε ξανά.",
+          title: "Error",
+          description: "Failed to create document. Please try again.",
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -131,7 +135,7 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       });
   };
 
-  // Πρότυπα εγγράφων
+  // Document templates
   const templates = [
     {
       title: 'Blank Document',
@@ -159,7 +163,7 @@ const WelcomeScreen = ({ onCreateDocument }) => {
     }
   ];
 
-  // Χαρακτηριστικά της εφαρμογής
+  // Application features
   const features = [
     {
       icon: FaMarkdown,
@@ -172,11 +176,42 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       description: "See others typing in real-time with cursors and selections"
     },
     {
-      icon: FaRegEdit,
-      title: "Edit History",
+      icon: FaRegClock,
+      title: "Version History",
       description: "Track changes and see who contributed what to the document"
+    },
+    {
+      icon: FaCode,
+      title: "Code Highlighting",
+      description: "Syntax highlighting for code blocks in various languages"
+    },
+    {
+      icon: FaBrain,
+      title: "Smart Features",
+      description: "Analytics, statistics, and insights about your documents"
     }
   ];
+
+  // Animation variants for staggered entrance
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: 0.5 }
+    }
+  };
 
   return (
     <Box 
@@ -185,166 +220,172 @@ const WelcomeScreen = ({ onCreateDocument }) => {
       bg={bgColor}
       overflowY="auto"
     >
-      <Stack 
-        spacing="8" 
-        align="center" 
-        maxW="1200px" 
-        mx="auto" 
-        w="full"
-        opacity={isLoaded ? 1 : 0}
-        transform={isLoaded ? "translateY(0)" : "translateY(20px)"}
-        transition="opacity 0.5s ease-out, transform 0.5s ease-out"
-      >
-        {/* Welcome header */}
-        <Stack spacing="3" textAlign="center" mb="8">
-          <Box mb="4">
-            <Logo height="60px" />
-          </Box>
-          <Heading as="h1" size="xl" color={textColor}>
-            Welcome to CollabMD
-          </Heading>
-          <Text color={mutedColor} fontSize="lg">
-            Create, edit, and collaborate on Markdown documents in real-time
-          </Text>
-        </Stack>
-        
-        {/* Create document input */}
-        <Flex 
-          direction={{ base: 'column', md: 'row' }}
-          shadow="md"
-          borderRadius="lg"
-          bg={cardBg}
-          p="6"
-          mb="8"
-          align="center"
-          justify="space-between"
-          border="1px"
-          borderColor={borderColor}
-          opacity={isLoaded ? 1 : 0}
-          transform={isLoaded ? "translateY(0)" : "translateY(20px)"}
-          transition="opacity 0.5s ease-out 0.1s, transform 0.5s ease-out 0.1s"
-          w="full"
-          maxW="800px"
+      <Container maxW="1200px" h="full">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
         >
-          <Stack align="start" spacing="1" mb={{ base: 4, md: 0 }} mr={{ md: 4 }} flex="1">
-            <Heading size="md">Start a new document</Heading>
-            <Text color={mutedColor}>Create a document and share it with others</Text>
-          </Stack>
-          <Flex width={{ base: 'full', md: 'auto' }}>
-            <InputGroup size="md">
-              <InputLeftElement>
-                <FaRegFileAlt color={primaryColor} />
-              </InputLeftElement>
-              <Input
-                placeholder="Document name"
-                value={documentName}
-                onChange={(e) => setDocumentName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreateDocument();
-                }}
-                mr="2"
-              />
-            </InputGroup>
-            <Button
-              colorScheme="blue"
-              leftIcon={<AddIcon />}
-              onClick={handleCreateDocument}
-              isLoading={isCreating}
-              loadingText="Creating..."
+          {/* Welcome header */}
+          <motion.div variants={itemVariants}>
+            <Flex justifyContent="center" mb="8">
+              <VStack>
+                <Box mb="4">
+                  <Logo height="60px" />
+                </Box>
+                <Heading as="h1" size="xl" color={textColor} textAlign="center">
+                  Welcome to CollabMD
+                </Heading>
+                <Text color={mutedColor} fontSize="lg" textAlign="center">
+                  Create, edit, and collaborate on Markdown documents in real-time
+                </Text>
+              </VStack>
+            </Flex>
+          </motion.div>
+          
+          {/* Create document input */}
+          <motion.div variants={itemVariants}>
+            <Card
+              shadow="md"
+              borderRadius="lg"
+              bg={cardBg}
+              p="6"
+              mb="8"
+              border="1px"
+              borderColor={borderColor}
+              overflow="hidden"
             >
-              Create
-            </Button>
-          </Flex>
-        </Flex>
-        
-        {/* Templates */}
-        <Box 
-          mb="8" 
-          w="full"
-          opacity={isLoaded ? 1 : 0}
-          transform={isLoaded ? "translateY(0)" : "translateY(20px)"}
-          transition="opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s"
-        >
-          <Heading as="h2" size="md" mb="4">
-            Start with a template
-          </Heading>
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing="4" width="full">
-            {templates.map((template, index) => (
-              <Card 
-                key={index} 
-                bg={cardBg} 
-                shadow="md" 
-                borderRadius="lg" 
-                borderWidth="1px"
-                borderColor={borderColor}
-                overflow="hidden"
-                transition="all 0.2s"
-                _hover={{ 
-                  transform: 'translateY(-4px)',
-                  shadow: 'lg',
-                  borderColor: template.color 
-                }}
-                cursor="pointer"
-                onClick={() => createFromTemplate(template.title)}
+              <Flex 
+                direction={{ base: 'column', md: 'row' }}
+                align="center"
+                justify="space-between"
               >
-                <CardHeader pb="0">
-                  <Flex justifyContent="space-between" alignItems="center">
-                    <Box as={template.icon} boxSize="6" color={template.color} />
-                    <IconButton
-                      icon={<ChevronRightIcon />}
-                      variant="ghost"
-                      colorScheme="blue"
-                      size="sm"
-                      aria-label="Use template"
+                <Box mb={{ base: 4, md: 0 }} mr={{ md: 4 }} flex="1">
+                  <Heading size="md">Start a new document</Heading>
+                  <Text color={mutedColor}>Create a document and share it with others</Text>
+                </Box>
+                <Flex width={{ base: 'full', md: 'auto' }}>
+                  <InputGroup size="md">
+                    <InputLeftElement>
+                      <FaRegFileAlt color={primaryColor} />
+                    </InputLeftElement>
+                    <Input
+                      placeholder="Document name"
+                      value={documentName}
+                      onChange={(e) => setDocumentName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCreateDocument();
+                      }}
+                      mr="2"
+                      borderColor={borderColor}
                     />
-                  </Flex>
-                </CardHeader>
-                <CardBody>
-                  <Heading size="sm" mb="2">{template.title}</Heading>
-                  <Text fontSize="sm" color={mutedColor}>{template.description}</Text>
-                </CardBody>
-              </Card>
-            ))}
-          </SimpleGrid>
-        </Box>
-        
-        {/* Features section */}
-        <Box 
-          w="full"
-          opacity={isLoaded ? 1 : 0}
-          transform={isLoaded ? "translateY(0)" : "translateY(20px)"}
-          transition="opacity 0.5s ease-out 0.3s, transform 0.5s ease-out 0.3s"
-        >
-          <Heading as="h2" size="md" mb="6" textAlign="center">
-            Key Features
-          </Heading>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing="6">
-            {features.map((feature, index) => (
-              <Box 
-                key={index}
-                p="6" 
-                bg={cardBg} 
-                borderRadius="lg" 
-                shadow="md"
-                borderWidth="1px"
-                borderColor={borderColor}
-                transition="all 0.2s"
-                _hover={{ transform: 'translateY(-4px)', shadow: 'lg' }}
-              >
-                <Box as={feature.icon} boxSize="8" color="blue.500" mb="4" />
-                <Heading as="h3" size="md" mb="2">{feature.title}</Heading>
-                <Text>{feature.description}</Text>
-              </Box>
-            ))}
-          </SimpleGrid>
-        </Box>
-        
-        {/* Footer */}
-        <Divider my="8" />
-        <Text fontSize="sm" color={mutedColor} textAlign="center">
-          &copy; 2025 CollabMD - Collaborative Markdown Editor
-        </Text>
-      </Stack>
+                  </InputGroup>
+                  <Button
+                    colorScheme="blue"
+                    leftIcon={<AddIcon />}
+                    onClick={handleCreateDocument}
+                    isLoading={isCreating}
+                    loadingText="Creating..."
+                  >
+                    Create
+                  </Button>
+                </Flex>
+              </Flex>
+            </Card>
+          </motion.div>
+          
+          {/* Templates */}
+          <motion.div variants={itemVariants}>
+            <Box mb="8">
+              <Heading as="h2" size="md" mb="4">
+                Start with a template
+              </Heading>
+              <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing="4" width="full">
+                {templates.map((template, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ y: -4, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
+                    whileTap={{ y: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card 
+                      bg={cardBg} 
+                      shadow="md" 
+                      borderRadius="lg" 
+                      borderWidth="1px"
+                      borderColor={borderColor}
+                      overflow="hidden"
+                      cursor="pointer"
+                      height="full"
+                      onClick={() => createFromTemplate(template.title)}
+                      _hover={{ borderColor: template.color }}
+                    >
+                      <CardHeader pb="0">
+                        <Flex justifyContent="space-between" alignItems="center">
+                          <Icon as={template.icon} boxSize="6" color={template.color} />
+                          <IconButton
+                            icon={<ChevronRightIcon />}
+                            variant="ghost"
+                            colorScheme="blue"
+                            size="sm"
+                            aria-label="Use template"
+                          />
+                        </Flex>
+                      </CardHeader>
+                      <CardBody>
+                        <Heading size="sm" mb="2">{template.title}</Heading>
+                        <Text fontSize="sm" color={mutedColor}>{template.description}</Text>
+                      </CardBody>
+                    </Card>
+                  </motion.div>
+                ))}
+              </SimpleGrid>
+            </Box>
+          </motion.div>
+          
+          {/* Features section */}
+          <motion.div variants={itemVariants}>
+            <Box mb="8">
+              <Heading as="h2" size="md" mb="6" textAlign="center">
+                Key Features
+              </Heading>
+              <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="6">
+                {features.map((feature, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ y: -4 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card 
+                      p="6" 
+                      bg={cardBg} 
+                      borderRadius="lg" 
+                      shadow="md"
+                      borderWidth="1px"
+                      borderColor={borderColor}
+                      height="full"
+                    >
+                      <VStack spacing="4" align="center" textAlign="center">
+                        <Icon as={feature.icon} boxSize="8" color="blue.500" />
+                        <Heading as="h3" size="md">{feature.title}</Heading>
+                        <Text fontSize="sm" color={mutedColor}>{feature.description}</Text>
+                      </VStack>
+                    </Card>
+                  </motion.div>
+                ))}
+              </SimpleGrid>
+            </Box>
+          </motion.div>
+          
+          {/* Footer */}
+          <motion.div variants={itemVariants}>
+            <Divider my="8" />
+            <Text fontSize="sm" color={mutedColor} textAlign="center">
+              &copy; {new Date().getFullYear()} CollabMD - Collaborative Markdown Editor
+            </Text>
+          </motion.div>
+        </motion.div>
+      </Container>
     </Box>
   );
 };

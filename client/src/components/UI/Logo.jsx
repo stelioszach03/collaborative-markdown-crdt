@@ -2,17 +2,17 @@ import React, { memo } from 'react';
 import { Box, useColorMode } from '@chakra-ui/react';
 
 /**
- * Logo Component - Το λογότυπο της εφαρμογής
+ * Logo Component - The application logo with light/dark mode support
  * 
  * @param {Object} props - Component properties
- * @param {string|number} [props.height="32px"] - Το ύψος του λογότυπου
- * @param {string} [props.className] - Επιπλέον CSS classes
- * @returns {JSX.Element} Το SVG λογότυπο της εφαρμογής
+ * @param {string|number} [props.height="32px"] - The height of the logo
+ * @param {string} [props.className] - Additional CSS classes
+ * @returns {JSX.Element} The SVG logo of the application
  */
 const Logo = ({ height = "32px", className = "", ...rest }) => {
   const { colorMode } = useColorMode();
   
-  // Χρώματα με βάση το θέμα (light/dark mode)
+  // Colors based on theme (light/dark mode)
   const fillColor = colorMode === 'dark' ? '#ffffff' : '#0073ff';
   const bgColor = colorMode === 'dark' ? '#1E293B' : '#EBF8FF';
   const accentColor1 = colorMode === 'dark' ? '#63B3ED' : '#0073FF';
@@ -24,63 +24,80 @@ const Logo = ({ height = "32px", className = "", ...rest }) => {
       width="auto" 
       className={`app-logo ${className}`}
       {...rest}
+      transition="all 0.2s"
     >
       <svg 
         height="100%" 
-        viewBox="0 0 120 120" 
+        viewBox="0 0 512 512" 
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
         aria-label="CollabMD Logo"
         role="img"
       >
-        {/* Rounded rectangle background */}
-        <rect width="120" height="120" rx="24" fill={bgColor} />
+        {/* Background rounded square */}
+        <rect width="512" height="512" rx="96" fill={bgColor} />
         
-        {/* Document outline */}
-        <path 
-          d="M92 36H28V84H92V36Z" 
-          stroke={fillColor} 
-          strokeWidth="4" 
+        {/* Paper base */}
+        <path
+          d="M396 112H116V400H396V112Z"
+          fill="white"
+          stroke={fillColor}
+          strokeWidth="16"
           strokeLinejoin="round"
         />
         
-        {/* Document content lines */}
-        <path 
-          d="M38 50H82" 
-          stroke={fillColor} 
-          strokeWidth="4" 
-          strokeLinecap="round" 
+        {/* Markdown lines */}
+        <path
+          d="M164 176H348"
+          stroke={fillColor}
+          strokeWidth="16"
+          strokeLinecap="round"
         />
-        <path 
-          d="M38 64H82" 
-          stroke={fillColor} 
-          strokeWidth="4" 
-          strokeLinecap="round" 
+        <path
+          d="M164 224H348"
+          stroke={fillColor}
+          strokeWidth="16"
+          strokeLinecap="round"
         />
-        <path 
-          d="M38 78H62" 
-          stroke={fillColor} 
-          strokeWidth="4" 
-          strokeLinecap="round" 
+        <path
+          d="M164 272H280"
+          stroke={fillColor}
+          strokeWidth="16"
+          strokeLinecap="round"
+        />
+        <path
+          d="M164 320H240"
+          stroke={fillColor}
+          strokeWidth="16"
+          strokeLinecap="round"
         />
         
-        {/* Collaboration dots */}
-        <circle 
-          cx="85" 
-          cy="78" 
-          r="6" 
-          fill={accentColor1}
+        {/* Hash symbol for Markdown */}
+        <path
+          d="M190 150L174 202M222 150L206 202M164 163H230M152 189H218"
+          stroke={accentColor1}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
-        <circle 
-          cx="70" 
-          cy="78" 
-          r="6" 
-          fill={accentColor2}
-        />
+        
+        {/* Collab dots */}
+        <circle cx="340" cy="320" r="24" fill={accentColor1} />
+        <circle cx="380" cy="320" r="24" fill={accentColor2} />
+        
+        {/* Cursor */}
+        <rect x="314" y="272" width="4" height="20" fill={accentColor1}>
+          <animate
+            attributeName="opacity"
+            values="1;0;1"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+        </rect>
       </svg>
     </Box>
   );
 };
 
-// Χρήση του memo για βελτιωμένη απόδοση, καθώς το logo σπάνια αλλάζει
+// Use memo for performance optimization - logo rarely changes
 export default memo(Logo);

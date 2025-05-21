@@ -1,30 +1,25 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
-  Box, Flex, useColorModeValue, Text, Button, useToast,
-  Tooltip, HStack, Badge, Icon, Menu, MenuButton,
-  MenuList, MenuItem, useColorMode
+  Box, Flex, useColorModeValue, Text, useToast, Tooltip, 
+  IconButton, HStack, Badge, useDisclosure
 } from '@chakra-ui/react';
 import { useCRDT } from '../../hooks/useCRDT';
 import { useDocument } from '../../context/DocumentContext';
 import { indexToPosition, positionToIndex, getCursorCoordinates } from '../../utils/crdt';
 import EditorToolbar from './EditorToolbar';
 import UserCursor from './UserCursor';
-import { useTheme } from '../../context/ThemeContext';
 import { insertMarkdown } from '../../utils/markdown';
-import { ChevronDownIcon } from '@chakra-ui/icons';
-import { FaRegSave, FaKeyboard, FaEye, FaCode } from 'react-icons/fa';
-import { MdPersonOff } from 'react-icons/md';
+import { FaEye } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 const Editor = ({ docId }) => {
   const editorRef = useRef(null);
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
-  const { theme } = useTheme();
-  const { colorMode } = useColorMode();
   const { text, connectionStatus, activeUsers } = useDocument();
   const toast = useToast();
   
+  // CRDT integration
   const { 
     ytext,
     connected,
@@ -36,19 +31,24 @@ const Editor = ({ docId }) => {
     redo
   } = useCRDT(docId);
 
+  // Editor state
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [cursorCoordinates, setCursorCoordinates] = useState({ top: 0, left: 0 });
   const [showLineNumbers, setShowLineNumbers] = useState(true);
   const [showInvisibles, setShowInvisibles] = useState(false);
   const [showOthersCursors, setShowOthersCursors] = useState(true);
+  const [activeLine, setActiveLine] = useState(0);
+  const [lastEditTime, setLastEditTime] = useState(Date.now());
   
+  // Colors
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const textColor = useColorModeValue('gray.800', 'gray.100');
   const lineNumberColor = useColorModeValue('gray.400', 'gray.500');
   const lineNumberBg = useColorModeValue('gray.50', 'gray.900');
   const lineHighlightColor = useColorModeValue('blue.50', 'blue.900');
+  const activeLineBg = useColorModeValue('blue.50', 'blue.800');
   
   // Handle cursor movement and selection
   const handleCursorChange = useCallback(() => {
@@ -61,6 +61,9 @@ const Editor = ({ docId }) => {
     const position = indexToPosition(text, selectionStart);
     const coordinates = getCursorCoordinates(textareaRef.current, position);
     setCursorCoordinates(coordinates);
+    
+    // Set active line
+    setActiveLine(position.line);
     
     // Update awareness state
     if (selectionStart === selectionEnd) {
@@ -98,6 +101,9 @@ const Editor = ({ docId }) => {
     const oldText = text;
     
     if (newText === oldText) return;
+    
+    // Record edit time
+    setLastEditTime(Date.now());
     
     // Find the diff and apply it
     if (oldText.length === 0) {
@@ -141,15 +147,23 @@ const Editor = ({ docId }) => {
     
     // Calculate the diff and apply targeted changes
     if (formattedText !== text) {
-      // For simplicity, we're replacing the entire text
-      // In a production app, you would calculate a more precise diff
+      // For simplicity, we'll replace the entire text
       deleteText(0, text.length);
       insertText(0, formattedText);
       
       // Focus back on the editor
       textareaRef.current.focus();
+      
+      // Show success toast for formatting
+      toast({
+        title: "Formatting applied",
+        status: "success",
+        duration: 1000,
+        isClosable: true,
+        position: "bottom-right"
+      });
     }
-  }, [ytext, text, selection, deleteText, insertText]);
+  }, [ytext, text, selection, deleteText, insertText, toast]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e) => {
@@ -192,6 +206,18 @@ const Editor = ({ docId }) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
       e.preventDefault();
       formatText('italic');
+    }
+    
+    // Link
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      formatText('link', { url: 'https://example.com' });
+    }
+    
+    // Headings
+    if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '6') {
+      e.preventDefault();
+      formatText('heading', { level: parseInt(e.key) });
     }
     
     // Tab key for indentation
@@ -249,8 +275,11 @@ const Editor = ({ docId }) => {
     return Array.from(awarenessStates.entries()).map(([clientId, state]) => {
       if (!state.cursor) return null;
       
+      // Determine if user is actively typing
+      const isActive = Date.now() - (state.lastUpdate || 0) < 3000;
+      
       // Convert cursor position to coordinates
-      const cursorCoords = getCursorCoordinates(editorRef.current, state.cursor);
+      const cursorCoords = getCursorCoordinates(textareaRef.current, state.cursor);
       
       return (
         <UserCursor
@@ -259,6 +288,7 @@ const Editor = ({ docId }) => {
           color={state.color || '#cccccc'}
           position={cursorCoords}
           selection={state.selection}
+          isActive={isActive}
         />
       );
     });
@@ -309,6 +339,7 @@ const Editor = ({ docId }) => {
               borderRadius="full"
               bg={connected ? 'green.500' : 'orange.500'}
               mr="2"
+              animation={connected ? undefined : "0.8s blink infinite"}
             />
             <Text fontSize="xs" textTransform="capitalize">
               {connected ? 'Connected' : 'Reconnecting...'}
@@ -325,7 +356,7 @@ const Editor = ({ docId }) => {
                 borderRadius="full"
               >
                 <HStack spacing="1">
-                  <Icon as={FaEye} fontSize="xs" />
+                  <FaEye size={10} />
                   <Text fontSize="xs">{Object.keys(activeUsers).length}</Text>
                 </HStack>
               </Badge>
@@ -352,19 +383,34 @@ const Editor = ({ docId }) => {
               textAlign="right"
               py="4"
               pr="2"
+              position="relative"
             >
+              {/* Active line highlight */}
+              <Box
+                position="absolute"
+                width="100%"
+                height="20px"
+                bg={activeLineBg}
+                opacity="0.5"
+                transform={`translateY(${activeLine * 20 + 16}px)`} 
+                transition="transform 0.1s ease"
+                zIndex="1"
+              />
+              
               {lineNumbers.map((num) => (
                 <Box 
                   key={num} 
                   px="2" 
+                  height="20px"
                   className="line-number"
                   _classList={{
                     'current-line': {
-                      bg: lineHighlightColor,
                       color: textColor,
                       fontWeight: "bold"
                     }
                   }}
+                  position="relative"
+                  zIndex="2"
                 >
                   {num}
                 </Box>
@@ -412,9 +458,11 @@ const Editor = ({ docId }) => {
               zIndex="1"
               spellCheck="false"
               className={showInvisibles ? "show-invisibles" : ""}
+              _placeholder={{ color: "gray.400" }}
+              placeholder="Start typing... Use Markdown for formatting."
               sx={{
                 '&::selection': {
-                  backgroundColor: theme === 'dark' ? 'rgba(99, 179, 237, 0.3)' : 'rgba(0, 115, 255, 0.2)',
+                  backgroundColor: useColorModeValue('rgba(0, 115, 255, 0.2)', 'rgba(99, 179, 237, 0.3)'),
                 },
                 '&.show-invisibles': {
                   '& .space:before': {
@@ -434,6 +482,35 @@ const Editor = ({ docId }) => {
                   }
                 }
               }}
+            />
+            
+            {/* Line highlight */}
+            <Box
+              position="absolute"
+              left="0"
+              right="0"
+              height="20px"
+              backgroundColor={lineHighlightColor}
+              opacity="0.5"
+              transform={`translateY(${activeLine * 20 + 16}px)`}
+              transition="transform 0.1s ease"
+              display={showLineNumbers ? 'none' : 'block'}
+              pointerEvents="none"
+            />
+            
+            {/* Local cursor */}
+            <Box
+              position="absolute"
+              width="2px"
+              height="20px"
+              backgroundColor={useColorModeValue('blue.500', 'blue.300')}
+              top={cursorCoordinates.top}
+              left={cursorCoordinates.left}
+              zIndex="2"
+              opacity="0.8"
+              className="cursor-blink"
+              display={isEditing ? 'none' : 'block'}
+              pointerEvents="none"
             />
             
             {/* Remote cursors */}

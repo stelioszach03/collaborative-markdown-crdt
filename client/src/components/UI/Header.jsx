@@ -1,25 +1,73 @@
 import React, { useState, useRef } from 'react';
 import {
-  Box, Flex, IconButton, Button, useColorModeValue, Menu, MenuButton,
-  MenuList, MenuItem, Text, Tooltip, Avatar, AvatarBadge, HStack,
-  Popover, PopoverTrigger, PopoverContent, PopoverHeader, PopoverBody,
-  PopoverFooter, FormControl, FormLabel, Input, Badge, Heading,
-  Drawer, DrawerBody, DrawerHeader, DrawerOverlay, DrawerContent,
-  DrawerCloseButton, useDisclosure, Divider, Kbd, Icon, Spacer, ButtonGroup,
-  VStack // Προσθήκη του VStack εδώ αν χρειάζεται
+  Box, 
+  Flex, 
+  IconButton, 
+  Button, 
+  useColorModeValue, 
+  Menu, 
+  MenuButton,
+  MenuList, 
+  MenuItem, 
+  Text, 
+  Tooltip, 
+  HStack, 
+  Badge, 
+  Input, 
+  InputGroup,
+  InputRightElement,
+  Divider,
+  useDisclosure,
+  Kbd,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  VStack
 } from '@chakra-ui/react';
-import { HamburgerIcon, ViewIcon, SettingsIcon, ChevronDownIcon, EditIcon, 
-         SearchIcon, InfoIcon, AddIcon, CloseIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { FaUserFriends, FaChartBar, FaHistory, FaRegClock, FaRegUser,
-         FaSignOutAlt, FaRegQuestionCircle, FaKeyboard, FaCheck } from 'react-icons/fa';
-import { VscGraphLine } from 'react-icons/vsc';
-import { BiBookContent, BiSolidFileExport, BiCodeAlt } from 'react-icons/bi';
-import { MdOutlineContentCopy } from 'react-icons/md';
-import ThemeToggle from './ThemeToggle';
+import { 
+  HamburgerIcon, 
+  ViewIcon, 
+  ChevronDownIcon, 
+  EditIcon, 
+  SearchIcon, 
+  CloseIcon,
+  CheckIcon,
+  InfoIcon,
+  SettingsIcon
+} from '@chakra-ui/icons';
+import { 
+  FaUserFriends, 
+  FaChartBar, 
+  FaHistory, 
+  FaRegUser,
+  FaKeyboard, 
+  FaCheck, 
+  FaLink
+} from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { useDocument } from '../../context/DocumentContext';
-import { Link, useNavigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
+import UserPresence from './UserPresence';
 import Logo from './Logo';
 
+/**
+ * Header Component - Main application header with controls and user interface
+ * 
+ * @param {Object} props - Component properties
+ * @param {Function} props.toggleSidebar - Function to toggle sidebar visibility
+ * @param {boolean} props.isSidebarOpen - Current sidebar state
+ * @param {Function} props.togglePreview - Function to toggle preview panel
+ * @param {boolean} props.isPreviewVisible - Current preview panel state
+ * @param {Function} props.toggleEditHistory - Function to toggle edit history panel
+ * @param {boolean} props.isEditHistoryVisible - Current edit history panel state
+ * @param {Function} props.toggleCollaborationMap - Function to toggle collaboration map
+ * @param {boolean} props.isCollaborationMapVisible - Current collaboration map state
+ * @param {Function} props.toggleAnalytics - Function to toggle analytics panel
+ * @param {boolean} props.isAnalyticsVisible - Current analytics panel state
+ */
 const Header = ({ 
   toggleSidebar, 
   isSidebarOpen,
@@ -32,38 +80,46 @@ const Header = ({
   toggleAnalytics,
   isAnalyticsVisible
 }) => {
+  // Color mode values
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const textColor = useColorModeValue('gray.800', 'white');
-  const buttonHoverBg = useColorModeValue('gray.100', 'gray.700');
+  const mutedColor = useColorModeValue('gray.500', 'gray.400');
+  const accentColor = useColorModeValue('blue.500', 'blue.400');
+  const hoverBg = useColorModeValue('gray.50', 'gray.700');
+  const activeBg = useColorModeValue('blue.50', 'blue.900');
   
+  // Document context
   const { 
     currentDoc, 
     updateDocumentName, 
-    username, 
-    updateUsername,
     createDocument,
-    activeUsers,
-    connectionStatus,
-    userId
+    connectionStatus
   } = useDocument();
   
+  // Local state
   const [isEditing, setIsEditing] = useState(false);
   const [newDocName, setNewDocName] = useState('');
-  const [newUsername, setNewUsername] = useState(username);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { isOpen: isHelpOpen, onOpen: onHelpOpen, onClose: onHelpClose } = useDisclosure();
   const [copiedLink, setCopiedLink] = useState(false);
-  const inputRef = useRef();
   const navigate = useNavigate();
+  const inputRef = useRef();
+  
+  // Shortcuts drawer state
+  const { 
+    isOpen: isShortcutsOpen, 
+    onOpen: onShortcutsOpen, 
+    onClose: onShortcutsClose 
+  } = useDisclosure();
 
+  // Handle document name update
   const handleDocNameChange = () => {
-    if (newDocName && newDocName !== currentDoc.name) {
+    if (newDocName && newDocName !== currentDoc?.name) {
       updateDocumentName(currentDoc.id, newDocName);
     }
     setIsEditing(false);
   };
 
+  // Create new document
   const handleCreateDocument = () => {
     createDocument('New Document').then(doc => {
       if (doc) {
@@ -72,13 +128,7 @@ const Header = ({
     });
   };
 
-  const handleUsernameChange = () => {
-    if (newUsername && newUsername !== username) {
-      updateUsername(newUsername);
-    }
-    setIsUserMenuOpen(false);
-  };
-
+  // Copy document link to clipboard
   const copyDocumentLink = () => {
     const url = `${window.location.origin}/documents/${currentDoc?.id}`;
     navigator.clipboard.writeText(url);
@@ -114,104 +164,128 @@ const Header = ({
         </Tooltip>
         
         {/* Logo */}
-        <Box mr={{ base: "2", md: "8" }} display="flex" alignItems="center">
-          <Logo height="32px" />
-          <Text display={{ base: "none", md: "block" }} fontSize="lg" fontWeight="bold" color={textColor} ml="2">
+        <Box mr={{ base: "2", md: "4" }} display="flex" alignItems="center">
+          <Logo height="28px" />
+          <Text 
+            display={{ base: "none", md: "block" }} 
+            fontSize="lg" 
+            fontWeight="bold" 
+            color={textColor} 
+            ml="2"
+            letterSpacing="tight"
+          >
             CollabMD
           </Text>
         </Box>
         
-        {/* Document title */}
+        {/* Document title or new document button */}
         {currentDoc ? (
           <Flex align="center">
             {isEditing ? (
               <HStack>
-                <Input
-                  value={newDocName}
-                  onChange={(e) => setNewDocName(e.target.value)}
-                  size="sm"
-                  width="200px"
-                  autoFocus
-                  ref={inputRef}
-                  onBlur={handleDocNameChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleDocNameChange();
-                    } else if (e.key === 'Escape') {
-                      setIsEditing(false);
-                    }
-                  }}
-                />
-                <IconButton
-                  icon={<FaCheck />}
-                  size="sm"
-                  onClick={handleDocNameChange}
-                  aria-label="Save"
-                  colorScheme="green"
-                />
-                <IconButton
-                  icon={<CloseIcon />}
-                  size="sm"
-                  onClick={() => setIsEditing(false)}
-                  aria-label="Cancel"
-                  variant="ghost"
-                />
+                <InputGroup size="sm" width="200px">
+                  <Input
+                    value={newDocName}
+                    onChange={(e) => setNewDocName(e.target.value)}
+                    pr="4.5rem"
+                    autoFocus
+                    ref={inputRef}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleDocNameChange();
+                      if (e.key === 'Escape') setIsEditing(false);
+                    }}
+                    borderColor={borderColor}
+                  />
+                  <InputRightElement width="4.5rem">
+                    <HStack spacing="1">
+                      <IconButton
+                        icon={<CheckIcon />}
+                        size="xs"
+                        onClick={handleDocNameChange}
+                        aria-label="Save"
+                        colorScheme="green"
+                      />
+                      <IconButton
+                        icon={<CloseIcon />}
+                        size="xs"
+                        onClick={() => setIsEditing(false)}
+                        aria-label="Cancel"
+                        variant="ghost"
+                      />
+                    </HStack>
+                  </InputRightElement>
+                </InputGroup>
               </HStack>
             ) : (
-              <HStack>
-                <Text fontSize="md" fontWeight="medium" color={textColor}>
+              <HStack spacing="2">
+                <Text 
+                  fontSize="md" 
+                  fontWeight="medium" 
+                  color={textColor}
+                  maxW={{ base: "120px", sm: "200px", md: "300px" }}
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  whiteSpace="nowrap"
+                >
                   {currentDoc.name}
                 </Text>
-                <Tooltip label="Rename document">
-                  <IconButton
-                    icon={<EditIcon />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setNewDocName(currentDoc.name);
-                      setIsEditing(true);
-                      setTimeout(() => inputRef.current?.focus(), 0);
-                    }}
-                    aria-label="Edit"
-                  />
-                </Tooltip>
-                <Tooltip label={copiedLink ? "Copied!" : "Copy link to document"}>
-                  <IconButton
-                    icon={copiedLink ? <FaCheck /> : <MdOutlineContentCopy />}
-                    size="sm"
-                    variant="ghost"
-                    color={copiedLink ? "green.500" : undefined}
-                    onClick={copyDocumentLink}
-                    aria-label="Copy link"
-                  />
-                </Tooltip>
-                <Badge
-                  colorScheme={connectionStatus === 'connected' ? 'green' : 'orange'}
-                  variant="subtle"
-                  px="2"
-                  py="1"
-                  borderRadius="full"
-                  display="flex"
-                  alignItems="center"
-                >
-                  <Box
-                    w="8px"
-                    h="8px"
+                
+                <HStack spacing="1">
+                  <Tooltip label="Rename document">
+                    <IconButton
+                      icon={<EditIcon />}
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => {
+                        setNewDocName(currentDoc.name);
+                        setIsEditing(true);
+                        setTimeout(() => inputRef.current?.focus(), 0);
+                      }}
+                      aria-label="Edit"
+                    />
+                  </Tooltip>
+                  
+                  <Tooltip label={copiedLink ? "Copied!" : "Copy link to document"}>
+                    <IconButton
+                      icon={copiedLink ? <CheckIcon /> : <FaLink />}
+                      size="xs"
+                      variant="ghost"
+                      color={copiedLink ? "green.500" : undefined}
+                      onClick={copyDocumentLink}
+                      aria-label="Copy link"
+                    />
+                  </Tooltip>
+                  
+                  <Badge
+                    colorScheme={connectionStatus === 'connected' ? 'green' : 'orange'}
+                    variant="subtle"
+                    px="2"
                     borderRadius="full"
-                    bg={connectionStatus === 'connected' ? 'green.500' : 'orange.500'}
-                    mr="2"
-                  />
-                  <Text fontSize="xs" textTransform="capitalize">{connectionStatus}</Text>
-                </Badge>
+                    display="flex"
+                    alignItems="center"
+                    fontSize="xs"
+                  >
+                    <Box
+                      w="6px"
+                      h="6px"
+                      borderRadius="full"
+                      bg={connectionStatus === 'connected' ? 'green.500' : 'orange.500'}
+                      mr="1.5"
+                      animation={connectionStatus === 'connected' ? 'none' : '1s pulse infinite ease-in-out'}
+                    />
+                    <Text fontSize="xs" textTransform="capitalize">{connectionStatus}</Text>
+                  </Badge>
+                </HStack>
               </HStack>
             )}
           </Flex>
         ) : (
           <Button
-            leftIcon={<AddIcon />}
+            leftIcon={<EditIcon />}
             size="sm"
             colorScheme="blue"
             onClick={handleCreateDocument}
+            boxShadow="sm"
           >
             New Document
           </Button>
@@ -221,7 +295,7 @@ const Header = ({
       {/* Right section */}
       <Flex align="center">
         {/* View controls */}
-        <Menu>
+        <Menu closeOnSelect={false}>
           <Tooltip label="View options">
             <MenuButton
               as={Button}
@@ -230,37 +304,69 @@ const Header = ({
               rightIcon={<ChevronDownIcon />}
               leftIcon={<ViewIcon />}
               mr="2"
-              _hover={{ bg: buttonHoverBg }}
+              _hover={{ bg: hoverBg }}
             >
               <Text display={{ base: "none", md: "block" }}>View</Text>
             </MenuButton>
           </Tooltip>
           <MenuList zIndex="1000">
-            <MenuItem onClick={togglePreview} icon={isPreviewVisible ? <FaCheck /> : undefined}>
-              {isPreviewVisible ? 'Hide Preview' : 'Show Preview'}
+            <MenuItem 
+              icon={isPreviewVisible ? <CheckIcon color={accentColor} /> : undefined} 
+              onClick={togglePreview}
+              bg={isPreviewVisible ? activeBg : undefined}
+            >
+              <Flex justify="space-between" width="full" align="center">
+                <Text>Preview Panel</Text>
+                <Kbd size="xs">Ctrl+P</Kbd>
+              </Flex>
             </MenuItem>
-            <MenuItem onClick={toggleEditHistory} icon={isEditHistoryVisible ? <FaCheck /> : undefined}>
-              {isEditHistoryVisible ? 'Hide Edit History' : 'Show Edit History'}
+            
+            <MenuItem 
+              icon={isEditHistoryVisible ? <CheckIcon color={accentColor} /> : undefined}
+              onClick={toggleEditHistory}
+              bg={isEditHistoryVisible ? activeBg : undefined}
+            >
+              <Flex justify="space-between" width="full" align="center">
+                <Text>Edit History</Text>
+                <Kbd size="xs">Ctrl+H</Kbd>
+              </Flex>
             </MenuItem>
-            <MenuItem onClick={toggleCollaborationMap} icon={isCollaborationMapVisible ? <FaCheck /> : undefined}>
-              {isCollaborationMapVisible ? 'Hide Collaboration Map' : 'Show Collaboration Map'}
+            
+            <MenuItem 
+              icon={isCollaborationMapVisible ? <CheckIcon color={accentColor} /> : undefined}
+              onClick={toggleCollaborationMap}
+              bg={isCollaborationMapVisible ? activeBg : undefined}
+            >
+              <Flex justify="space-between" width="full">
+                <Text>Collaboration Map</Text>
+              </Flex>
             </MenuItem>
-            <MenuItem onClick={toggleAnalytics} icon={isAnalyticsVisible ? <FaCheck /> : undefined}>
-              {isAnalyticsVisible ? 'Hide Analytics' : 'Show Analytics'}
+            
+            <MenuItem 
+              icon={isAnalyticsVisible ? <CheckIcon color={accentColor} /> : undefined}
+              onClick={toggleAnalytics}
+              bg={isAnalyticsVisible ? activeBg : undefined}
+            >
+              <Flex justify="space-between" width="full">
+                <Text>Analytics Panel</Text>
+              </Flex>
             </MenuItem>
-            <Divider />
-            <MenuItem icon={<FaKeyboard />} onClick={onHelpOpen}>
-              Keyboard Shortcuts
+            
+            <Divider my="2" />
+            
+            <MenuItem icon={<FaKeyboard />} onClick={onShortcutsOpen}>
+              <Text>Keyboard Shortcuts</Text>
             </MenuItem>
           </MenuList>
         </Menu>
         
-        {/* Visualization toggles */}
-        <ButtonGroup size="sm" isAttached variant="ghost" mr="3" display={{ base: "none", md: "flex" }}>
+        {/* Visualization toggles for larger screens */}
+        <HStack spacing="1" mr="2" display={{ base: "none", md: "flex" }}>
           <Tooltip label="Edit History">
             <IconButton
               icon={<FaHistory />}
               aria-label="Edit History"
+              size="sm"
               variant={isEditHistoryVisible ? 'solid' : 'ghost'}
               colorScheme={isEditHistoryVisible ? 'blue' : 'gray'}
               onClick={toggleEditHistory}
@@ -271,6 +377,7 @@ const Header = ({
             <IconButton
               icon={<FaUserFriends />}
               aria-label="Collaboration Map"
+              size="sm"
               variant={isCollaborationMapVisible ? 'solid' : 'ghost'}
               colorScheme={isCollaborationMapVisible ? 'blue' : 'gray'}
               onClick={toggleCollaborationMap}
@@ -281,12 +388,13 @@ const Header = ({
             <IconButton
               icon={<FaChartBar />}
               aria-label="Analytics"
+              size="sm"
               variant={isAnalyticsVisible ? 'solid' : 'ghost'}
               colorScheme={isAnalyticsVisible ? 'blue' : 'gray'}
               onClick={toggleAnalytics}
             />
           </Tooltip>
-        </ButtonGroup>
+        </HStack>
         
         {/* Preview toggle */}
         <Tooltip label={isPreviewVisible ? "Hide Preview" : "Show Preview"}>
@@ -297,139 +405,64 @@ const Header = ({
             variant={isPreviewVisible ? 'solid' : 'ghost'}
             colorScheme={isPreviewVisible ? 'blue' : 'gray'}
             onClick={togglePreview}
-            mr="3"
+            mr="2"
+          />
+        </Tooltip>
+        
+        {/* Search button - placeholder for future search functionality */}
+        <Tooltip label="Search in document">
+          <IconButton
+            icon={<SearchIcon />}
+            aria-label="Search"
+            size="sm"
+            variant="ghost"
+            mr="2"
+            onClick={() => {
+              // To be implemented
+              console.log('Search functionality to be implemented');
+            }}
           />
         </Tooltip>
         
         {/* Theme toggle */}
-        <ThemeToggle mr="3" />
-        
-        {/* Active users */}
         <Box mr="3">
-          <Popover placement="bottom-end">
-            <PopoverTrigger>
-              <Button
-                size="sm"
-                variant="ghost"
-                leftIcon={<FaUserFriends />}
-                _hover={{ bg: buttonHoverBg }}
-              >
-                {activeUsers.size || 1}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent width="280px">
-              <PopoverHeader fontWeight="bold" px="4" py="3">
-                Active Users
-              </PopoverHeader>
-              <PopoverBody>
-                <VStack align="stretch" spacing="3">
-                  {/* Current user */}
-                  <Flex align="center" p="2" bg={useColorModeValue('gray.50', 'gray.700')} borderRadius="md">
-                    <Avatar size="sm" name={username} bg={activeUsers.get(userId)?.color || 'blue.500'}>
-                      <AvatarBadge boxSize="1em" bg="green.500" />
-                    </Avatar>
-                    <Text ml="3" fontWeight="medium">
-                      {username} <Badge ml="1" colorScheme="green">you</Badge>
-                    </Text>
-                  </Flex>
-                  
-                  {/* Other users */}
-                  {Array.from(activeUsers.entries()).map(([id, user]) => (
-                    id !== userId && (
-                      <Flex key={id} align="center" p="2" bg={useColorModeValue('gray.50', 'gray.700')} borderRadius="md">
-                        <Avatar size="sm" name={user.username} bg={user.color}>
-                          <AvatarBadge boxSize="1em" bg="green.500" />
-                        </Avatar>
-                        <Text ml="3">
-                          {user.username}
-                        </Text>
-                      </Flex>
-                    )
-                  ))}
-                  
-                  {activeUsers.size <= 1 && (
-                    <Box textAlign="center" p="2" color="gray.500">
-                      <Text>You're the only user here.</Text>
-                      <Text fontSize="sm" mt="1">Share the document link to collaborate.</Text>
-                    </Box>
-                  )}
-                </VStack>
-              </PopoverBody>
-            </PopoverContent>
-          </Popover>
+          <ThemeToggle />
         </Box>
         
-        {/* User menu */}
-        <Popover
-          isOpen={isUserMenuOpen}
-          onClose={() => setIsUserMenuOpen(false)}
-          placement="bottom-end"
-        >
-          <PopoverTrigger>
-            <Button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              size="sm"
-              leftIcon={<Avatar size="xs" name={username} bg={activeUsers.get(userId)?.color || 'blue.500'} />}
-              rightIcon={<ChevronDownIcon />}
-              variant="ghost"
-              _hover={{ bg: buttonHoverBg }}
-            >
-              <Text display={{ base: "none", md: "block" }}>{username}</Text>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent width="280px">
-            <PopoverHeader fontWeight="bold">
-              User Settings
-            </PopoverHeader>
-            <PopoverBody>
-              <FormControl>
-                <FormLabel fontSize="sm">Username</FormLabel>
-                <Input
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  size="sm"
-                  placeholder="Enter your username"
-                />
-              </FormControl>
-            </PopoverBody>
-            <PopoverFooter display="flex" justifyContent="flex-end">
-              <Button
-                size="sm"
-                variant="ghost"
-                mr="2"
-                onClick={() => setIsUserMenuOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                colorScheme="blue"
-                onClick={handleUsernameChange}
-              >
-                Save
-              </Button>
-            </PopoverFooter>
-          </PopoverContent>
-        </Popover>
+        {/* User presence component */}
+        <Box mr="3">
+          <UserPresence />
+        </Box>
         
-        {/* Help button */}
+        {/* Settings button */}
+        <Tooltip label="Settings">
+          <IconButton
+            icon={<SettingsIcon />}
+            aria-label="Settings"
+            size="sm"
+            variant="ghost"
+            mr={{ base: "0", md: "2" }}
+          />
+        </Tooltip>
+        
+        {/* Help button - visible on medium screens and up */}
         <Tooltip label="Help">
           <IconButton
-            icon={<FaRegQuestionCircle />}
+            icon={<InfoIcon />}
             aria-label="Help"
             size="sm"
             variant="ghost"
-            onClick={onHelpOpen}
-            ml="1"
+            display={{ base: "none", md: "flex" }}
+            onClick={onShortcutsOpen}
           />
         </Tooltip>
       </Flex>
       
       {/* Keyboard shortcuts drawer */}
       <Drawer
-        isOpen={isHelpOpen}
+        isOpen={isShortcutsOpen}
         placement="right"
-        onClose={onHelpClose}
+        onClose={onShortcutsClose}
         size="md"
       >
         <DrawerOverlay />
@@ -441,7 +474,7 @@ const Header = ({
           <DrawerBody>
             <VStack align="stretch" spacing="6" mt="4">
               <Box>
-                <Heading size="sm" mb="3">Editor Shortcuts</Heading>
+                <Text fontWeight="bold" mb="3" color={accentColor}>Editor Shortcuts</Text>
                 <HStack justify="space-between" mb="2">
                   <Text>Bold Text</Text>
                   <HStack><Kbd>Ctrl</Kbd> + <Kbd>B</Kbd></HStack>
@@ -449,6 +482,10 @@ const Header = ({
                 <HStack justify="space-between" mb="2">
                   <Text>Italic Text</Text>
                   <HStack><Kbd>Ctrl</Kbd> + <Kbd>I</Kbd></HStack>
+                </HStack>
+                <HStack justify="space-between" mb="2">
+                  <Text>Insert Link</Text>
+                  <HStack><Kbd>Ctrl</Kbd> + <Kbd>K</Kbd></HStack>
                 </HStack>
                 <HStack justify="space-between" mb="2">
                   <Text>Undo</Text>
@@ -463,28 +500,36 @@ const Header = ({
               <Divider />
               
               <Box>
-                <Heading size="sm" mb="3">View Shortcuts</Heading>
+                <Text fontWeight="bold" mb="3" color={accentColor}>View Shortcuts</Text>
                 <HStack justify="space-between" mb="2">
                   <Text>Toggle Preview</Text>
                   <HStack><Kbd>Ctrl</Kbd> + <Kbd>P</Kbd></HStack>
                 </HStack>
                 <HStack justify="space-between" mb="2">
                   <Text>Toggle Sidebar</Text>
-                  <HStack><Kbd>Ctrl</Kbd> + <Kbd>B</Kbd></HStack>
+                  <HStack><Kbd>Ctrl</Kbd> + <Kbd>\\</Kbd></HStack>
+                </HStack>
+                <HStack justify="space-between" mb="2">
+                  <Text>Toggle History</Text>
+                  <HStack><Kbd>Ctrl</Kbd> + <Kbd>H</Kbd></HStack>
                 </HStack>
               </Box>
               
               <Divider />
               
               <Box>
-                <Heading size="sm" mb="3">Document Shortcuts</Heading>
-                <HStack justify="space-between" mb="2">
-                  <Text>Save Changes</Text>
-                  <HStack><Kbd>Ctrl</Kbd> + <Kbd>S</Kbd></HStack>
-                </HStack>
+                <Text fontWeight="bold" mb="3" color={accentColor}>Document Shortcuts</Text>
                 <HStack justify="space-between" mb="2">
                   <Text>New Document</Text>
                   <HStack><Kbd>Ctrl</Kbd> + <Kbd>N</Kbd></HStack>
+                </HStack>
+                <HStack justify="space-between" mb="2">
+                  <Text>Rename Document</Text>
+                  <HStack><Kbd>F2</Kbd></HStack>
+                </HStack>
+                <HStack justify="space-between" mb="2">
+                  <Text>Copy Document Link</Text>
+                  <HStack><Kbd>Ctrl</Kbd> + <Kbd>Shift</Kbd> + <Kbd>C</Kbd></HStack>
                 </HStack>
               </Box>
             </VStack>
